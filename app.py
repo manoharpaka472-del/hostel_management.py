@@ -1,845 +1,955 @@
 import streamlit as st
-import sqlite3
-import hashlib
-import secrets
-import os
-import csv
-import io
-from datetime import datetime, date, timedelta
 
-# ============================================================
-# CONFIGURATION
-# ============================================================
+# ---------------------------------------------------------
+# PAGE CONFIG
+# ---------------------------------------------------------
 
 st.set_page_config(
     page_title="Smart Hostel Management System",
-    page_icon="🏠",
+    page_icon="🏢",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="expanded"
 )
 
-DB_FILE = "hostel.db"
-
-# ============================================================
-# DATABASE
-# ============================================================
-
-def get_db():
-    conn = sqlite3.connect(DB_FILE, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
-
-
-def execute(sql, params=(), fetch=False, many=False):
-    conn = get_db()
-    cur = conn.cursor()
-
-    if many:
-        cur.executemany(sql, params)
-    else:
-        cur.execute(sql, params)
-
-    if fetch:
-        result = cur.fetchall()
-        conn.close()
-        return result
-
-    conn.commit()
-    last_id = cur.lastrowid
-    conn.close()
-    return last_id
-
-
-def hash_password(password):
-    salt = secrets.token_hex(16)
-    hashed = hashlib.pbkdf2_hmac(
-        "sha256",
-        password.encode(),
-        salt.encode(),
-        120000
-    ).hex()
-    return f"{salt}${hashed}"
-
-
-def verify_password(password, stored):
-    try:
-        salt, hashed = stored.split("$")
-        check = hashlib.pbkdf2_hmac(
-            "sha256",
-            password.encode(),
-            salt.encode(),
-            120000
-        ).hex()
-        return secrets.compare_digest(check, hashed)
-    except Exception:
-        return False
-
-
-def init_db():
-
-    conn = get_db()
-    c = conn.cursor()
-
-    c.executescript("""
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        role TEXT NOT NULL CHECK(role IN ('student','admin')),
-        active INTEGER DEFAULT 1,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS students (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER UNIQUE,
-        student_id TEXT UNIQUE NOT NULL,
-        name TEXT NOT NULL,
-        dob TEXT,
-        gender TEXT,
-        phone TEXT,
-        email TEXT,
-        guardian_name TEXT,
-        guardian_phone TEXT,
-        address TEXT,
-        course TEXT,
-        branch TEXT,
-        year TEXT,
-        college TEXT,
-        hostel TEXT,
-        block TEXT,
-        room TEXT,
-        bed INTEGER,
-        joining_date TEXT,
-        profile_photo TEXT,
-        FOREIGN KEY(user_id) REFERENCES users(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS hostels (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        address TEXT,
-        phone TEXT,
-        email TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS rooms (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        hostel TEXT,
-        block TEXT,
-        floor INTEGER,
-        room_number TEXT UNIQUE,
-        room_type TEXT,
-        total_beds INTEGER,
-        status TEXT DEFAULT 'Available'
-    );
-
-    CREATE TABLE IF NOT EXISTS beds (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        room_id INTEGER,
-        bed_number INTEGER,
-        occupied INTEGER DEFAULT 0,
-        student_id INTEGER,
-        FOREIGN KEY(room_id) REFERENCES rooms(id),
-        FOREIGN KEY(student_id) REFERENCES students(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS hostel_fees (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_id INTEGER,
-        academic_year TEXT,
-        total_fee REAL DEFAULT 80000,
-        discount REAL DEFAULT 0,
-        paid REAL DEFAULT 0,
-        due_date TEXT,
-        status TEXT DEFAULT 'Pending',
-        FOREIGN KEY(student_id) REFERENCES students(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS payments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_id INTEGER,
-        receipt_number TEXT UNIQUE,
-        transaction_id TEXT UNIQUE,
-        amount REAL,
-        method TEXT,
-        payment_date TEXT,
-        status TEXT,
-        FOREIGN KEY(student_id) REFERENCES students(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS meal_menus (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        menu_date TEXT,
-        breakfast TEXT,
-        lunch TEXT,
-        snacks TEXT,
-        dinner TEXT,
-        UNIQUE(menu_date)
-    );
-
-    CREATE TABLE IF NOT EXISTS meal_bookings (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_id INTEGER,
-        booking_date TEXT,
-        meal TEXT,
-        status TEXT DEFAULT 'Booked',
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(student_id, booking_date, meal),
-        FOREIGN KEY(student_id) REFERENCES students(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS leave_requests (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_id INTEGER,
-        start_date TEXT,
-        end_date TEXT,
-        reason TEXT,
-        destination TEXT,
-        guardian_contact TEXT,
-        status TEXT DEFAULT 'Pending',
-        remarks TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(student_id) REFERENCES students(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS complaints (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_id INTEGER,
-        category TEXT,
-        subject TEXT,
-        description TEXT,
-        priority TEXT,
-        status TEXT DEFAULT 'Submitted',
-        admin_comment TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(student_id) REFERENCES students(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS maintenance_requests (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_id INTEGER,
-        category TEXT,
-        description TEXT,
-        priority TEXT,
-        status TEXT DEFAULT 'Submitted',
-        staff TEXT,
-        comment TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(student_id) REFERENCES students(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS room_change_requests (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_id INTEGER,
-        current_room TEXT,
-        preferred_room TEXT,
-        reason TEXT,
-        comments TEXT,
-        status TEXT DEFAULT 'Pending',
-        remarks TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(student_id) REFERENCES students(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS announcements (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT,
-        description TEXT,
-        priority TEXT,
-        announcement_date TEXT,
-        expiry_date TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS notifications (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        title TEXT,
-        message TEXT,
-        is_read INTEGER DEFAULT 0,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS settings (
-        key TEXT PRIMARY KEY,
-        value TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS audit_logs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        action TEXT,
-        details TEXT,
-        created_at TEXT DEFAULT CURRENT_TIMESTAMP
-    );
-    """)
-
-    conn.commit()
-    conn.close()
-
-    seed_data()
-
-
-# ============================================================
-# SEED DATA
-# ============================================================
-
-def seed_data():
-
-    # Admin
-    admin = execute(
-        "SELECT id FROM users WHERE username=?",
-        ("admin",),
-        fetch=True
-    )
-
-    if not admin:
-        admin_id = execute(
-            """
-            INSERT INTO users(username,password,role)
-            VALUES(?,?,?)
-            """,
-            ("admin", hash_password("Admin@123"), "admin")
-        )
-    else:
-        admin_id = admin[0]["id"]
-
-    # Student
-    student_user = execute(
-        "SELECT id FROM users WHERE username=?",
-        ("student001",),
-        fetch=True
-    )
-
-    if not student_user:
-
-        uid = execute(
-            """
-            INSERT INTO users(username,password,role)
-            VALUES(?,?,?)
-            """,
-            ("student001", hash_password("Student@123"), "student")
-        )
-
-        execute(
-            """
-            INSERT INTO students(
-                user_id,student_id,name,dob,gender,phone,email,
-                guardian_name,guardian_phone,address,course,branch,
-                year,college,hostel,block,room,bed,joining_date
-            )
-            VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            """,
-            (
-                uid,
-                "STU001",
-                "Rahul Kumar",
-                "2006-04-15",
-                "Male",
-                "9876543210",
-                "rahul@example.com",
-                "Ramesh Kumar",
-                "9876500000",
-                "Hyderabad, Telangana",
-                "B.Tech",
-                "Mechanical Engineering",
-                "2nd Year",
-                "ABC College",
-                "ABC College Boys Hostel",
-                "Block A",
-                "A101",
-                1,
-                "2026-07-01"
-            )
-        )
-
-    # Hostels
-    if not execute(
-        "SELECT id FROM hostels LIMIT 1",
-        fetch=True
-    ):
-        execute(
-            """
-            INSERT INTO hostels(name,address,phone,email)
-            VALUES(?,?,?,?)
-            """,
-            (
-                "ABC College Boys Hostel",
-                "ABC College Campus, Telangana",
-                "9876543210",
-                "hostel@example.com"
-            )
-        )
-
-    # Rooms
-    rooms = [
-        ("ABC College Boys Hostel", "Block A", 1, "A101", "Four-sharing", 4),
-        ("ABC College Boys Hostel", "Block A", 1, "A102", "Four-sharing", 4),
-        ("ABC College Boys Hostel", "Block A", 1, "A103", "Triple", 3),
-        ("ABC College Boys Hostel", "Block B", 2, "B201", "Four-sharing", 4),
-        ("ABC College Boys Hostel", "Block B", 2, "B202", "Double", 2),
-    ]
-
-    for r in rooms:
-
-        exists = execute(
-            "SELECT id FROM rooms WHERE room_number=?",
-            (r[3],),
-            fetch=True
-        )
-
-        if not exists:
-            room_id = execute(
-                """
-                INSERT INTO rooms(
-                    hostel,block,floor,room_number,
-                    room_type,total_beds
-                )
-                VALUES(?,?,?,?,?,?)
-                """,
-                r
-            )
-
-            for bed_no in range(1, r[5] + 1):
-                execute(
-                    """
-                    INSERT INTO beds(room_id,bed_number)
-                    VALUES(?,?)
-                    """,
-                    (room_id, bed_no)
-                )
-
-    # Allocate demo student
-    student = execute(
-        "SELECT id FROM students WHERE student_id='STU001'",
-        fetch=True
-    )
-
-    room = execute(
-        "SELECT id FROM rooms WHERE room_number='A101'",
-        fetch=True
-    )
-
-    if student and room:
-
-        already = execute(
-            """
-            SELECT id FROM beds
-            WHERE room_id=? AND bed_number=1
-            """,
-            (room[0]["id"],),
-            fetch=True
-        )
-
-        if already:
-            execute(
-                """
-                UPDATE beds
-                SET occupied=1,student_id=?
-                WHERE room_id=? AND bed_number=1
-                """,
-                (student[0]["id"], room[0]["id"])
-            )
-
-    # Fee
-    if student:
-
-        fee = execute(
-            "SELECT id FROM hostel_fees WHERE student_id=?",
-            (student[0]["id"],),
-            fetch=True
-        )
-
-        if not fee:
-            execute(
-                """
-                INSERT INTO hostel_fees(
-                    student_id,academic_year,total_fee,
-                    discount,paid,due_date,status
-                )
-                VALUES(?,?,?,?,?,?,?)
-                """,
-                (
-                    student[0]["id"],
-                    "2026-27",
-                    80000,
-                    0,
-                    30000,
-                    "2026-12-15",
-                    "Partially Paid"
-                )
-            )
-
-    # Menus
-    today = date.today()
-
-    for i in range(7):
-
-        d = today + timedelta(days=i)
-        ds = d.isoformat()
-
-        exists = execute(
-            "SELECT id FROM meal_menus WHERE menu_date=?",
-            (ds,),
-            fetch=True
-        )
-
-        if not exists:
-            execute(
-                """
-                INSERT INTO meal_menus(
-                    menu_date,breakfast,lunch,snacks,dinner
-                )
-                VALUES(?,?,?,?,?)
-                """,
-                (
-                    ds,
-                    "Idli + Sambar + Tea",
-                    "Rice + Dal + Vegetable Curry + Curd",
-                    "Tea + Biscuits",
-                    "Chapati + Paneer Curry + Rice"
-                )
-            )
-
-    # Announcement
-    if not execute(
-        "SELECT id FROM announcements LIMIT 1",
-        fetch=True
-    ):
-        execute(
-            """
-            INSERT INTO announcements(
-                title,description,priority,
-                announcement_date,expiry_date
-            )
-            VALUES(?,?,?,?,?)
-            """,
-            (
-                "Welcome to the New Academic Year",
-                "Students are requested to follow hostel rules and maintain cleanliness.",
-                "Normal",
-                str(today),
-                str(today + timedelta(days=30))
-            )
-        )
-
-
-init_db()
-
-
-# ============================================================
+# ---------------------------------------------------------
 # CSS
-# ============================================================
+# ---------------------------------------------------------
 
 st.markdown("""
 <style>
 
-#MainMenu {visibility:hidden;}
-footer {visibility:hidden;}
-header {visibility:hidden;}
+/* Main background */
+.stApp {
+    background:
+        radial-gradient(
+            circle at 15% 20%,
+            rgba(30, 120, 255, 0.25),
+            transparent 30%
+        ),
+        radial-gradient(
+            circle at 85% 20%,
+            rgba(150, 60, 255, 0.25),
+            transparent 30%
+        ),
+        linear-gradient(
+            135deg,
+            #07111f,
+            #0b1830,
+            #111936,
+            #070d18
+        );
 
+    color: white;
+}
+
+/* Background grid */
+.stApp::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+
+    background-image:
+        linear-gradient(
+            rgba(255,255,255,0.025) 1px,
+            transparent 1px
+        ),
+        linear-gradient(
+            90deg,
+            rgba(255,255,255,0.025) 1px,
+            transparent 1px
+        );
+
+    background-size: 40px 40px;
+
+    pointer-events: none;
+}
+
+/* Main container */
 .block-container {
-    padding-top: 1.5rem;
-    padding-bottom: 3rem;
     max-width: 1400px;
+    padding-top: 2rem;
+    padding-bottom: 3rem;
 }
 
-.main-title {
-    font-size: 2.3rem;
+/* Hero */
+.hero {
+    position: relative;
+
+    padding: 55px 45px;
+    margin-bottom: 30px;
+
+    border-radius: 30px;
+
+    background:
+        radial-gradient(
+            circle at 80% 20%,
+            rgba(150,70,255,0.30),
+            transparent 35%
+        ),
+        radial-gradient(
+            circle at 20% 80%,
+            rgba(0,190,255,0.20),
+            transparent 35%
+        ),
+        linear-gradient(
+            135deg,
+            rgba(30,55,100,0.95),
+            rgba(25,20,60,0.90)
+        );
+
+    border: 1px solid rgba(255,255,255,0.15);
+
+    box-shadow:
+        0 25px 70px rgba(0,0,0,0.45);
+
+    overflow: hidden;
+}
+
+/* 3D building */
+.hero::after {
+    content: "🏢";
+
+    position: absolute;
+
+    right: 7%;
+    top: 20px;
+
+    font-size: 150px;
+
+    opacity: 0.18;
+
+    filter:
+        drop-shadow(
+            0 20px 20px
+            rgba(0,0,0,0.6)
+        );
+}
+
+/* Hero title */
+.hero-title {
+    font-size: clamp(36px, 5vw, 65px);
+
     font-weight: 800;
+
+    line-height: 1.05;
+
+    background:
+        linear-gradient(
+            90deg,
+            #ffffff,
+            #6bc9ff,
+            #b28cff
+        );
+
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
-.subtitle {
-    color: #64748b;
+/* Hero subtitle */
+.hero-subtitle {
+    margin-top: 18px;
+
+    max-width: 700px;
+
+    font-size: 18px;
+
+    line-height: 1.7;
+
+    color: rgba(235,245,255,0.75);
 }
 
+/* Cards */
 .card {
-    padding: 22px;
-    border-radius: 18px;
-    background: white;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 5px 18px rgba(15,23,42,0.06);
-    margin-bottom: 15px;
+    min-height: 170px;
+
+    padding: 25px;
+
+    border-radius: 22px;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(255,255,255,0.11),
+            rgba(255,255,255,0.035)
+        );
+
+    border: 1px solid rgba(255,255,255,0.12);
+
+    box-shadow:
+        0 15px 40px rgba(0,0,0,0.30);
+
+    transition: 0.3s;
 }
 
-.metric-card {
-    padding: 20px;
-    border-radius: 18px;
-    background: white;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 5px 15px rgba(15,23,42,0.05);
+.card:hover {
+    transform: translateY(-8px);
+
+    box-shadow:
+        0 25px 60px rgba(0,0,0,0.45);
 }
 
-.metric-title {
-    color: #64748b;
+.card-icon {
+    font-size: 40px;
+}
+
+.card-title {
+    margin-top: 12px;
+
+    color: rgba(255,255,255,0.65);
+
     font-size: 14px;
+
+    font-weight: 600;
 }
 
-.metric-value {
-    font-size: 28px;
-    font-weight: 800;
+.card-value {
     margin-top: 5px;
+
+    color: white;
+
+    font-size: 28px;
+
+    font-weight: 800;
 }
 
-.success-box {
-    padding: 15px;
+/* Section heading */
+.section-title {
+    margin-top: 30px;
+    margin-bottom: 20px;
+
+    font-size: 27px;
+
+    font-weight: 800;
+
+    color: white;
+}
+
+.section-title span {
+    color: #65c8ff;
+}
+
+/* Buttons */
+.stButton > button {
+    width: 100%;
+
+    min-height: 48px;
+
     border-radius: 12px;
-    background: #ecfdf5;
-    border: 1px solid #a7f3d0;
+
+    border: 1px solid rgba(255,255,255,0.15);
+
+    background:
+        linear-gradient(
+            135deg,
+            #267cff,
+            #7046e8
+        );
+
+    color: white;
+
+    font-weight: 700;
+
+    transition: 0.25s;
 }
 
-.warning-box {
-    padding: 15px;
-    border-radius: 12px;
-    background: #fffbeb;
-    border: 1px solid #fde68a;
+.stButton > button:hover {
+    transform: translateY(-3px);
+
+    box-shadow:
+        0 12px 30px
+        rgba(80,100,255,0.35);
 }
 
-.info-box {
-    padding: 15px;
-    border-radius: 12px;
-    background: #eff6ff;
-    border: 1px solid #bfdbfe;
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background:
+        linear-gradient(
+            180deg,
+            #0a162a,
+            #070d1c
+        );
+
+    border-right:
+        1px solid
+        rgba(255,255,255,0.10);
 }
 
-.danger-box {
-    padding: 15px;
-    border-radius: 12px;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
+/* Sidebar text */
+section[data-testid="stSidebar"] * {
+    color: white;
 }
 
-.login-box {
-    max-width: 500px;
-    margin: 50px auto;
+/* Footer */
+.footer {
+    text-align: center;
+
+    margin-top: 60px;
+
+    padding: 25px;
+
+    color: rgba(255,255,255,0.45);
+
+    font-size: 13px;
 }
 
-.status-paid {
-    color: #059669;
-    font-weight: bold;
-}
+/* Mobile */
+@media(max-width: 768px) {
 
-.status-pending {
-    color: #d97706;
-    font-weight: bold;
-}
+    .block-container {
+        padding: 1rem;
+    }
 
-.status-danger {
-    color: #dc2626;
-    font-weight: bold;
+    .hero {
+        padding: 35px 25px;
+    }
+
+    .hero-title {
+        font-size: 38px;
+    }
+
+    .hero::after {
+        font-size: 80px;
+    }
+
+    .hero-subtitle {
+        font-size: 15px;
+    }
+
 }
 
 </style>
 """, unsafe_allow_html=True)
 
 
-# ============================================================
-# HELPERS
-# ============================================================
+# ---------------------------------------------------------
+# SESSION
+# ---------------------------------------------------------
 
-def money(value):
-    return f"₹{value:,.2f}"
+if "page" not in st.session_state:
+    st.session_state.page = "Home"
 
-
-def notify(user_id, title, message):
-    execute(
-        """
-        INSERT INTO notifications(user_id,title,message)
-        VALUES(?,?,?)
-        """,
-        (user_id, title, message)
-    )
+if "role" not in st.session_state:
+    st.session_state.role = None
 
 
-def audit(user_id, action, details):
-    execute(
-        """
-        INSERT INTO audit_logs(user_id,action,details)
-        VALUES(?,?,?)
-        """,
-        (user_id, action, details)
-    )
+# ---------------------------------------------------------
+# SIDEBAR
+# ---------------------------------------------------------
 
-
-def get_student(user_id):
-    rows = execute(
-        "SELECT * FROM students WHERE user_id=?",
-        (user_id,),
-        fetch=True
-    )
-    return rows[0] if rows else None
-
-
-def get_student_by_id(student_id):
-    rows = execute(
-        "SELECT * FROM students WHERE id=?",
-        (student_id,),
-        fetch=True
-    )
-    return rows[0] if rows else None
-
-
-def get_room(room_number):
-    rows = execute(
-        "SELECT * FROM rooms WHERE room_number=?",
-        (room_number,),
-        fetch=True
-    )
-    return rows[0] if rows else None
-
-
-def available_beds(room_id):
-    return execute(
-        """
-        SELECT * FROM beds
-        WHERE room_id=? AND occupied=0
-        """,
-        (room_id,),
-        fetch=True
-    )
-
-
-def update_room_status(room_id):
-    room = execute(
-        "SELECT * FROM rooms WHERE id=?",
-        (room_id,),
-        fetch=True
-    )[0]
-
-    occupied = execute(
-        """
-        SELECT COUNT(*) AS c FROM beds
-        WHERE room_id=? AND occupied=1
-        """,
-        (room_id,),
-        fetch=True
-    )[0]["c"]
-
-    if occupied == 0:
-        status = "Available"
-    elif occupied >= room["total_beds"]:
-        status = "Full"
-    else:
-        status = "Partially Occupied"
-
-    execute(
-        "UPDATE rooms SET status=? WHERE id=?",
-        (status, room_id)
-    )
-
-
-# ============================================================
-# LOGIN
-# ============================================================
-
-def login_page():
+with st.sidebar:
 
     st.markdown(
-        "<div class='login-box'>",
+        """
+        <h2 style="text-align:center;">
+        🏢 Smart Hostel
+        </h2>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.markdown("---")
+
+    page = st.radio(
+        "Navigation",
+        [
+            "Home",
+            "Student Portal",
+            "Admin Portal",
+            "About"
+        ]
+    )
+
+    st.session_state.page = page
+
+
+# ---------------------------------------------------------
+# HOME
+# ---------------------------------------------------------
+
+if st.session_state.page == "Home":
+
+    st.markdown(
+        """
+        <div class="hero">
+
+            <div class="hero-title">
+                Smart Hostel<br>
+                Management System
+            </div>
+
+            <div class="hero-subtitle">
+                Manage rooms, hostel fees, meals,
+                complaints, maintenance, leave requests
+                and hostel operations from one modern platform.
+            </div>
+
+        </div>
+        """,
         unsafe_allow_html=True
     )
 
     st.markdown(
-        "<h1 style='text-align:center;'>🏠 Smart Hostel</h1>",
+        """
+        <div class="section-title">
+            Everything You Need <span>In One Place</span>
+        </div>
+        """,
         unsafe_allow_html=True
     )
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        st.markdown(
+            """
+            <div class="card">
+                <div class="card-icon">🏠</div>
+                <div class="card-title">ROOM MANAGEMENT</div>
+                <div class="card-value">Smart</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with col2:
+        st.markdown(
+            """
+            <div class="card">
+                <div class="card-icon">💳</div>
+                <div class="card-title">HOSTEL FEES</div>
+                <div class="card-value">Easy</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with col3:
+        st.markdown(
+            """
+            <div class="card">
+                <div class="card-icon">🍽️</div>
+                <div class="card-title">MEAL BOOKING</div>
+                <div class="card-value">Free</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+    with col4:
+        st.markdown(
+            """
+            <div class="card">
+                <div class="card-icon">🔐</div>
+                <div class="card-title">SECURITY</div>
+                <div class="card-value">Secure</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
     st.markdown(
-        "<p style='text-align:center;color:#64748b;'>"
-        "Hostel Management System"
-        "</p>",
+        """
+        <div class="section-title">
+            Choose Your <span>Portal</span>
+        </div>
+        """,
         unsafe_allow_html=True
     )
 
-    tab1, tab2 = st.tabs(["🎓 Student Login", "🛡️ Admin Login"])
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.markdown(
+            """
+            <div class="card">
+
+            <div class="card-icon">🎓</div>
+
+            <h2>Student Portal</h2>
+
+            <p>
+            View your room, hostel fee, meals,
+            complaints, maintenance, leave and
+            announcements.
+            </p>
+
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        if st.button(
+            "Open Student Portal",
+            key="student_home"
+        ):
+            st.session_state.page = "Student Portal"
+            st.rerun()
+
+    with col2:
+
+        st.markdown(
+            """
+            <div class="card">
+
+            <div class="card-icon">👨‍💼</div>
+
+            <h2>Admin Portal</h2>
+
+            <p>
+            Manage students, rooms, fees, payments,
+            meals, complaints, maintenance and reports.
+            </p>
+
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+        if st.button(
+            "Open Admin Portal",
+            key="admin_home"
+        ):
+            st.session_state.page = "Admin Portal"
+            st.rerun()
+
+
+# ---------------------------------------------------------
+# STUDENT PORTAL
+# ---------------------------------------------------------
+
+elif st.session_state.page == "Student Portal":
+
+    st.markdown(
+        """
+        <div class="hero">
+
+            <div class="hero-title">
+                Student Portal 🎓
+            </div>
+
+            <div class="hero-subtitle">
+                Manage your hostel life from one dashboard.
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    tab1, tab2, tab3 = st.tabs(
+        [
+            "Dashboard",
+            "Hostel Fee",
+            "Meals"
+        ]
+    )
 
     with tab1:
 
-        username = st.text_input(
-            "Student ID / Username",
-            key="student_username"
+        st.markdown(
+            '<div class="section-title">Student <span>Dashboard</span></div>',
+            unsafe_allow_html=True
         )
 
-        password = st.text_input(
-            "Password",
-            type="password",
-            key="student_password"
-        )
+        col1, col2, col3, col4 = st.columns(4)
 
-        remember = st.checkbox(
-            "Remember me",
-            key="student_remember"
-        )
+        data = [
+            ("🏠", "ROOM", "A-101"),
+            ("🛏️", "BED", "Bed 1"),
+            ("💰", "FEE", "₹80,000"),
+            ("🔔", "NOTIFICATIONS", "3")
+        ]
 
-        if st.button(
-            "Login as Student",
-            use_container_width=True,
-            type="primary"
+        for column, item in zip(
+            [col1, col2, col3, col4],
+            data
         ):
 
-            user = execute(
-                """
-                SELECT * FROM users
-                WHERE username=? AND role='student'
-                """,
-                (username,),
-                fetch=True
+            with column:
+
+                icon, title, value = item
+
+                st.markdown(
+                    f"""
+                    <div class="card">
+
+                        <div class="card-icon">
+                            {icon}
+                        </div>
+
+                        <div class="card-title">
+                            {title}
+                        </div>
+
+                        <div class="card-value">
+                            {value}
+                        </div>
+
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+        st.markdown(
+            '<div class="section-title">Quick <span>Actions</span></div>',
+            unsafe_allow_html=True
+        )
+
+        c1, c2, c3 = st.columns(3)
+
+        with c1:
+            st.button(
+                "📝 Apply Leave",
+                key="leave",
+                use_container_width=True
             )
 
-            if user and user[0]["active"] and verify_password(
-                password,
-                user[0]["password"]
-            ):
+        with c2:
+            st.button(
+                "🔧 Request Maintenance",
+                key="maintenance",
+                use_container_width=True
+            )
 
-                st.session_state.logged_in = True
-                st.session_state.user_id = user[0]["id"]
-                st.session_state.role = "student"
-
-                st.rerun()
-
-            else:
-                st.error("Invalid student username or password.")
+        with c3:
+            st.button(
+                "📢 View Announcements",
+                key="announcement",
+                use_container_width=True
+            )
 
     with tab2:
 
-        username = st.text_input(
-            "Admin Username",
-            key="admin_username"
+        st.markdown(
+            '<div class="section-title">Hostel <span>Fee</span></div>',
+            unsafe_allow_html=True
         )
 
-        password = st.text_input(
-            "Admin Password",
-            type="password",
-            key="admin_password"
+        st.info(
+            "Your hostel fee includes accommodation, "
+            "utilities, maintenance and mess/meal facility."
+        )
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.metric(
+                "Total Hostel Fee",
+                "₹80,000"
+            )
+
+        with col2:
+            st.metric(
+                "Paid",
+                "₹50,000"
+            )
+
+        with col3:
+            st.metric(
+                "Pending",
+                "₹30,000"
+            )
+
+        st.markdown("### Make Payment")
+
+        amount = st.number_input(
+            "Payment Amount",
+            min_value=1,
+            max_value=30000,
+            value=10000
+        )
+
+        method = st.selectbox(
+            "Payment Method",
+            [
+                "UPI",
+                "Card",
+                "Net Banking"
+            ]
         )
 
         if st.button(
-            "Login as Admin",
-            use_container_width=True,
-            type="primary"
+            "💳 Pay Hostel Fee"
         ):
 
-            user = execute(
-                """
-                SELECT * FROM users
-                WHERE username=? AND role='admin'
-                """,
-                (username,),
-                fetch=True
+            st.success(
+                f"Payment request created for ₹{amount:,} using {method}."
             )
 
-            if user and user[0]["active"] and verify_password(
-                password,
-                user[0]["password"]
+            st.info(
+                "Demo payment mode. Connect Razorpay/Stripe "
+                "or another gateway for real payments."
+            )
+
+    with tab3:
+
+        st.markdown(
+            '<div class="section-title">Meal <span>Booking</span></div>',
+            unsafe_allow_html=True
+        )
+
+        st.success(
+            "🍽️ Meal charges are included in your hostel fee. "
+            "No additional payment is required."
+        )
+
+        st.markdown("### Today's Menu")
+
+        col1, col2, col3, col4 = st.columns(4)
+
+        meals = [
+            ("🌅", "Breakfast", "Idli + Sambar"),
+            ("☀️", "Lunch", "Rice + Dal + Curry"),
+            ("🍪", "Snacks", "Tea + Biscuits"),
+            ("🌙", "Dinner", "Chapati + Curry")
+        ]
+
+        for column, meal in zip(
+            [col1, col2, col3, col4],
+            meals
+        ):
+
+            with column:
+
+                icon, name, food = meal
+
+                st.markdown(
+                    f"""
+                    <div class="card">
+
+                        <div class="card-icon">
+                            {icon}
+                        </div>
+
+                        <h3>{name}</h3>
+
+                        <p>{food}</p>
+
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+                if st.button(
+                    f"Book {name}",
+                    key=name
+                ):
+                    st.success(
+                        f"{name} booked successfully!"
+                    )
+
+
+# ---------------------------------------------------------
+# ADMIN PORTAL
+# ---------------------------------------------------------
+
+elif st.session_state.page == "Admin Portal":
+
+    st.markdown(
+        """
+        <div class="hero">
+
+            <div class="hero-title">
+                Admin Portal 👨‍💼
+            </div>
+
+            <div class="hero-subtitle">
+                Control hostel operations from one dashboard.
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        '<div class="section-title">Hostel <span>Overview</span></div>',
+        unsafe_allow_html=True
+    )
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    admin_data = [
+        ("🎓", "Students", "245"),
+        ("🏠", "Rooms", "80"),
+        ("🛏️", "Occupied Beds", "220"),
+        ("💰", "Fee Collected", "₹1.65 Cr")
+    ]
+
+    for column, item in zip(
+        [col1, col2, col3, col4],
+        admin_data
+    ):
+
+        with column:
+
+            icon, title, value = item
+
+            st.markdown(
+                f"""
+                <div class="card">
+
+                    <div class="card-icon">
+                        {icon}
+                    </div>
+
+                    <div class="card-title">
+                        {title}
+                    </div>
+
+                    <div class="card-value">
+                        {value}
+                    </div>
+
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+    st.markdown(
+        '<div class="section-title">Management <span>Modules</span></div>',
+        unsafe_allow_html=True
+    )
+
+    modules = [
+        "🎓 Students",
+        "🏠 Rooms",
+        "🛏️ Room Allocation",
+        "💰 Hostel Fees",
+        "💳 Payments",
+        "🍽️ Meal Management",
+        "📝 Leave Requests",
+        "🔧 Maintenance",
+        "📢 Complaints",
+        "🔄 Room Change",
+        "📣 Announcements",
+        "📊 Reports"
+    ]
+
+    columns = st.columns(4)
+
+    for i, module in enumerate(modules):
+
+        with columns[i % 4]:
+
+            if st.button(
+                module,
+                key=f"module_{i}",
+                use_container_width=True
             ):
+                st.success(
+                    f"{module} module selected."
+                )
 
-                st.session_state.logged_in = True
-                st.session_state.user_id = user[0]["id"]
-                st.session_state.role = "admin"
+    st.markdown(
+        '<div class="section-title">Occupancy <span>Overview</span></div>',
+        unsafe_allow_html=True
+    )
 
-                st.rerun()
+    chart_data = {
+        "Hostel": [
+            "Block A",
+            "Block B",
+            "Block C",
+            "Block D"
+        ],
+        "Occupied": [
+            58,
+            50,
+            55,
+            57
+        ],
+        "Available": [
+            12,
+            10,
+            15,
+            13
+        ]
+    }
 
-            else:
-                st.e
+    import pandas as pd
+
+    df = pd.DataFrame(chart_data)
+
+    st.bar_chart(
+        df.set_index("Hostel")
+    )
+
+
+# ---------------------------------------------------------
+# ABOUT
+# ---------------------------------------------------------
+
+elif st.session_state.page == "About":
+
+    st.markdown(
+        """
+        <div class="hero">
+
+            <div class="hero-title">
+                About The System
+            </div>
+
+            <div class="hero-subtitle">
+                A modern digital platform for hostel
+                administration and student services.
+            </div>
+
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.markdown(
+        """
+        ### 🏢 Smart Hostel Management System
+
+        This platform is designed to manage:
+
+        - 🎓 Student registration
+        - 🔐 Student/Admin login
+        - 🏠 Hostel and room management
+        - 🛏️ Bed allocation
+        - 💰 Hostel fee management
+        - 💳 Payment records
+        - 🍽️ Meal booking
+        - 📝 Leave requests
+        - 📢 Complaints
+        - 🔧 Maintenance
+        - 🔄 Room change requests
+        - 📣 Announcements
+        - 🔔 Notifications
+        - 📊 Reports and analytics
+
+        **Important fee rule:**
+
+        The hostel fee is a combined fee.
+
+        Accommodation + utilities + maintenance +
+        mess/meal facility are included.
+
+        **Students do not pay a separate meal charge.**
+        """
+    )
+
+    st.success(
+        "🍽️ Meal charges are included in your hostel fee. "
+        "No additional payment is required."
+    )
+
+
+# ---------------------------------------------------------
+# FOOTER
+# ---------------------------------------------------------
+
+st.markdown(
+    """
+    <div class="footer">
+        Smart Hostel Management System © 2026
+        <br>
+        Modern • Secure • Student Friendly
+    </div>
+    """,
+    unsafe_allow_html=True
+)
