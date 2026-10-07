@@ -1,142 +1,315 @@
 import streamlit as st
 import sqlite3
 import hashlib
+from datetime import datetime
 
-# =========================
-# PAGE SETTINGS
-# =========================
+# =========================================================
+# PAGE CONFIGURATION
+# =========================================================
 
 st.set_page_config(
     page_title="Smart Hostel Management",
     page_icon="🏠",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-# =========================
+# =========================================================
 # DATABASE
-# =========================
+# =========================================================
 
 conn = sqlite3.connect(
     "hostel.db",
     check_same_thread=False
 )
 
+conn.row_factory = sqlite3.Row
 cursor = conn.cursor()
+
+
+# =========================================================
+# CREATE TABLES
+# =========================================================
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE,
-    password TEXT,
-    role TEXT,
-    name TEXT
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    role TEXT NOT NULL,
+    name TEXT NOT NULL,
+    active INTEGER DEFAULT 1
 )
 """)
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS students (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT,
-    student_id TEXT,
+    username TEXT UNIQUE NOT NULL,
+    student_id TEXT UNIQUE NOT NULL,
     phone TEXT,
+    email TEXT,
     branch TEXT,
     year TEXT,
+    college TEXT,
     hostel TEXT,
     block TEXT,
     room TEXT,
     bed TEXT,
-    fee REAL
+    guardian_name TEXT,
+    guardian_phone TEXT,
+    address TEXT,
+    joining_date TEXT,
+    hostel_fee REAL DEFAULT 80000,
+    paid_fee REAL DEFAULT 0
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS rooms (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    room_number TEXT UNIQUE NOT NULL,
+    block TEXT,
+    floor TEXT,
+    room_type TEXT,
+    total_beds INTEGER,
+    status TEXT
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS meals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    meal_date TEXT,
+    breakfast TEXT,
+    lunch TEXT,
+    snacks TEXT,
+    dinner TEXT
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS complaints (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id TEXT,
+    category TEXT,
+    subject TEXT,
+    description TEXT,
+    priority TEXT,
+    status TEXT DEFAULT 'Submitted',
+    created_at TEXT
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS leave_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id TEXT,
+    start_date TEXT,
+    end_date TEXT,
+    reason TEXT,
+    destination TEXT,
+    status TEXT DEFAULT 'Pending',
+    remarks TEXT
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS announcements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT,
+    message TEXT,
+    category TEXT,
+    priority TEXT,
+    created_at TEXT
 )
 """)
 
 conn.commit()
 
 
-# =========================
-# PASSWORD FUNCTION
-# =========================
+# =========================================================
+# PASSWORD
+# =========================================================
 
-def make_password(password):
+def hash_password(password):
     return hashlib.sha256(
-        password.encode()
+        password.encode("utf-8")
     ).hexdigest()
 
 
-# =========================
-# CREATE DEMO ACCOUNTS
-# =========================
+# =========================================================
+# DEMO DATA
+# =========================================================
 
-cursor.execute(
+# ADMIN
+
+admin = cursor.execute(
     "SELECT * FROM users WHERE username=?",
     ("admin",)
-)
+).fetchone()
 
-if cursor.fetchone() is None:
+if admin is None:
 
     cursor.execute("""
-    INSERT INTO users
-    (username, password, role, name)
-    VALUES (?, ?, ?, ?)
+        INSERT INTO users
+        (username, password, role, name, active)
+        VALUES (?, ?, ?, ?, ?)
     """, (
         "admin",
-        make_password("admin123"),
+        hash_password("admin123"),
         "admin",
-        "Hostel Administrator"
+        "Hostel Administrator",
+        1
     ))
 
+# STUDENT USER
 
-cursor.execute(
+student_user = cursor.execute(
     "SELECT * FROM users WHERE username=?",
     ("student",)
-)
+).fetchone()
 
-if cursor.fetchone() is None:
+if student_user is None:
 
     cursor.execute("""
-    INSERT INTO users
-    (username, password, role, name)
-    VALUES (?, ?, ?, ?)
+        INSERT INTO users
+        (username, password, role, name, active)
+        VALUES (?, ?, ?, ?, ?)
     """, (
         "student",
-        make_password("student123"),
+        hash_password("student123"),
         "student",
-        "Rahul Kumar"
+        "Rahul Kumar",
+        1
     ))
 
+# STUDENT PROFILE
+
+student = cursor.execute(
+    "SELECT * FROM students WHERE username=?",
+    ("student",)
+).fetchone()
+
+if student is None:
+
     cursor.execute("""
-    INSERT INTO students
-    (
-        username,
-        student_id,
-        phone,
-        branch,
-        year,
-        hostel,
-        block,
-        room,
-        bed,
-        fee
-    )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO students
+        (
+            username,
+            student_id,
+            phone,
+            email,
+            branch,
+            year,
+            college,
+            hostel,
+            block,
+            room,
+            bed,
+            guardian_name,
+            guardian_phone,
+            address,
+            joining_date,
+            hostel_fee,
+            paid_fee
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (
         "student",
         "STU001",
         "9876543210",
+        "student@example.com",
         "Mechanical Engineering",
         "2nd Year",
+        "ABC College",
         "ABC College Boys Hostel",
         "Block A",
         "A101",
         "Bed 1",
-        80000
+        "Ramesh Kumar",
+        "9876500000",
+        "Hyderabad, Telangana",
+        "01-07-2026",
+        80000,
+        30000
+    ))
+
+# ROOMS
+
+rooms = [
+    ("A101", "A", "1", "Double", 2, "Occupied"),
+    ("A102", "A", "1", "Double", 2, "Available"),
+    ("A103", "A", "1", "Triple", 3, "Available"),
+    ("B201", "B", "2", "Four Sharing", 4, "Available"),
+    ("B202", "B", "2", "Four Sharing", 4, "Available"),
+]
+
+for room in rooms:
+
+    exists = cursor.execute(
+        "SELECT * FROM rooms WHERE room_number=?",
+        (room[0],)
+    ).fetchone()
+
+    if exists is None:
+
+        cursor.execute("""
+            INSERT INTO rooms
+            (
+                room_number,
+                block,
+                floor,
+                room_type,
+                total_beds,
+                status
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, room)
+
+# ANNOUNCEMENT
+
+announcement = cursor.execute(
+    "SELECT * FROM announcements LIMIT 1"
+).fetchone()
+
+if announcement is None:
+
+    cursor.execute("""
+        INSERT INTO announcements
+        (title, message, category, priority, created_at)
+        VALUES (?, ?, ?, ?, ?)
+    """, (
+        "Welcome to Smart Hostel",
+        "Hostel management system is now active.",
+        "General",
+        "Normal",
+        datetime.now().strftime("%d-%m-%Y")
     ))
 
 conn.commit()
 
 
-# =========================
-# CSS
-# =========================
+# =========================================================
+# SESSION
+# =========================================================
+
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+if "role" not in st.session_state:
+    st.session_state.role = ""
+
+if "username" not in st.session_state:
+    st.session_state.username = ""
+
+if "page" not in st.session_state:
+    st.session_state.page = "Dashboard"
+
+
+# =========================================================
+# CUSTOM CSS
+# =========================================================
 
 st.markdown("""
 <style>
@@ -146,60 +319,113 @@ st.markdown("""
     background:
         radial-gradient(
             circle at 10% 10%,
-            #164e8a,
+            rgba(20, 90, 170, 0.45),
             transparent 30%
         ),
         radial-gradient(
-            circle at 90% 20%,
-            #512b82,
+            circle at 90% 15%,
+            rgba(100, 40, 160, 0.40),
             transparent 30%
         ),
         linear-gradient(
             135deg,
             #07111f,
-            #101b38
+            #10182f 50%,
+            #080d1c
         );
 
-}
-
-.main-title {
-
-    font-size: 48px;
-    font-weight: 800;
     color: white;
-
 }
 
-.subtitle {
+.block-container {
+    padding-top: 2rem;
+}
+
+.hero {
+
+    padding: 45px;
+
+    border-radius: 28px;
+
+    background:
+        linear-gradient(
+            135deg,
+            rgba(31, 94, 170, 0.35),
+            rgba(93, 43, 150, 0.35)
+        );
+
+    border: 1px solid rgba(255,255,255,0.15);
+
+    box-shadow:
+        0 20px 60px rgba(0,0,0,0.35);
+
+    margin-bottom: 30px;
+}
+
+.hero h1 {
+
+    font-size: 42px;
+
+    font-weight: 800;
+
+    margin-bottom: 10px;
+}
+
+.hero p {
 
     font-size: 18px;
-    color: #b8c7df;
 
+    color: #cbd5e1;
 }
 
 .card {
 
-    background: rgba(255,255,255,0.08);
-
-    border: 1px solid rgba(255,255,255,0.15);
+    padding: 25px;
 
     border-radius: 20px;
 
-    padding: 25px;
+    background:
+        rgba(255,255,255,0.08);
 
-    margin-bottom: 20px;
+    border:
+        1px solid rgba(255,255,255,0.12);
+
+    box-shadow:
+        0 10px 35px rgba(0,0,0,0.20);
 
 }
 
-.card h2 {
+.card h3 {
+
+    margin-top: 0;
 
     color: white;
-
 }
 
-.card p {
+.big-number {
 
-    color: #cbd5e1;
+    font-size: 32px;
+
+    font-weight: 800;
+
+    color: #61c7ff;
+}
+
+.login-box {
+
+    max-width: 600px;
+
+    margin: auto;
+
+    padding: 35px;
+
+    border-radius: 25px;
+
+    background:
+        rgba(255,255,255,0.08);
+
+    border:
+        1px solid rgba(255,255,255,0.15);
 
 }
 
@@ -207,51 +433,36 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# =========================
-# SESSION
-# =========================
-
-if "logged_in" not in st.session_state:
-
-    st.session_state.logged_in = False
-
-if "role" not in st.session_state:
-
-    st.session_state.role = ""
-
-if "username" not in st.session_state:
-
-    st.session_state.username = ""
-
-
-# =========================
-# LOGIN PAGE
-# =========================
+# =========================================================
+# LOGIN
+# =========================================================
 
 def login_page():
 
+    st.markdown("""
+    <div class="hero">
+
+        <h1>🏠 Smart Hostel Management</h1>
+
+        <p>
+        Manage rooms, hostel fees, meals, complaints,
+        leave requests and hostel operations from one platform.
+        </p>
+
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown(
-        '<div class="main-title">'
-        '🏠 Smart Hostel Management System'
-        '</div>',
+        '<div class="login-box">',
         unsafe_allow_html=True
     )
 
-    st.markdown(
-        '<div class="subtitle">'
-        'Modern Hostel Management Platform'
-        '</div>',
-        unsafe_allow_html=True
-    )
+    st.subheader("🔐 Login")
 
-    st.write("")
-
-    login_type = st.selectbox(
-        "Login As",
-        [
-            "Student",
-            "Admin"
-        ]
+    login_type = st.radio(
+        "Login Type",
+        ["Student", "Admin"],
+        horizontal=True
     )
 
     username = st.text_input(
@@ -265,103 +476,208 @@ def login_page():
 
     if st.button(
         "🔐 Login",
-        use_container_width=True
+        use_container_width=True,
+        type="primary"
     ):
 
-        user = cursor.execute(
-            """
+        user = cursor.execute("""
             SELECT *
             FROM users
             WHERE username=?
-            """,
-            (username,)
-        ).fetchone()
+        """, (username,)).fetchone()
 
         if user is None:
 
             st.error(
-                "Username not found."
+                "Username does not exist."
             )
 
-            return
+        elif user["active"] == 0:
 
-        stored_password = user[2]
-        role = user[3]
+            st.error(
+                "This account is disabled."
+            )
 
-        if make_password(password) != stored_password:
+        elif hash_password(password) != user["password"]:
 
             st.error(
                 "Incorrect password."
             )
 
-            return
-
-        if login_type == "Admin" and role != "admin":
+        elif login_type.lower() != user["role"]:
 
             st.error(
-                "This account is not an admin account."
+                "Wrong login type selected."
             )
 
-            return
+        else:
 
-        if login_type == "Student" and role != "student":
+            st.session_state.logged_in = True
+            st.session_state.role = user["role"]
+            st.session_state.username = user["username"]
+            st.session_state.page = "Dashboard"
 
-            st.error(
-                "This account is not a student account."
+            st.success(
+                "Login successful."
             )
 
-            return
+            st.rerun()
 
-        st.session_state.logged_in = True
-        st.session_state.role = role
-        st.session_state.username = username
+    st.markdown("</div>", unsafe_allow_html=True)
 
-        st.rerun()
+    st.write("")
 
-    st.divider()
+    col1, col2 = st.columns(2)
 
-    st.info(
-        "Demo Admin: admin / admin123"
-    )
+    with col1:
 
-    st.info(
-        "Demo Student: student / student123"
-    )
+        st.info("""
+        **Student Demo**
+
+        Username: `student`
+
+        Password: `student123`
+        """)
+
+    with col2:
+
+        st.warning("""
+        **Admin Demo**
+
+        Username: `admin`
+
+        Password: `admin123`
+        """)
 
 
-# =========================
-# STUDENT DASHBOARD
-# =========================
+# =========================================================
+# STUDENT PROFILE
+# =========================================================
 
-def student_dashboard():
+def student_profile():
 
-    student = cursor.execute(
-        """
+    student = cursor.execute("""
         SELECT *
         FROM students
         WHERE username=?
-        """,
-        (st.session_state.username,)
-    ).fetchone()
+    """, (st.session_state.username,)).fetchone()
 
     if student is None:
 
-        st.error(
-            "Student information not found."
-        )
+        st.error("Student profile not found.")
 
         return
 
-    st.title(
-        "🎓 Student Dashboard"
-    )
+    st.title("👤 My Profile")
 
-    st.write(
-        "Welcome,",
-        student[1]
-    )
+    with st.form("student_profile_form"):
 
-    st.divider()
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            phone = st.text_input(
+                "Phone",
+                value=student["phone"] or ""
+            )
+
+            email = st.text_input(
+                "Email",
+                value=student["email"] or ""
+            )
+
+            guardian = st.text_input(
+                "Guardian Name",
+                value=student["guardian_name"] or ""
+            )
+
+            guardian_phone = st.text_input(
+                "Guardian Phone",
+                value=student["guardian_phone"] or ""
+            )
+
+        with col2:
+
+            address = st.text_area(
+                "Address",
+                value=student["address"] or ""
+            )
+
+            branch = st.text_input(
+                "Branch",
+                value=student["branch"] or ""
+            )
+
+            year = st.text_input(
+                "Year",
+                value=student["year"] or ""
+            )
+
+        if st.form_submit_button(
+            "💾 Save Profile",
+            use_container_width=True
+        ):
+
+            cursor.execute("""
+                UPDATE students
+                SET
+                    phone=?,
+                    email=?,
+                    guardian_name=?,
+                    guardian_phone=?,
+                    address=?,
+                    branch=?,
+                    year=?
+                WHERE username=?
+            """, (
+                phone,
+                email,
+                guardian,
+                guardian_phone,
+                address,
+                branch,
+                year,
+                st.session_state.username
+            ))
+
+            conn.commit()
+
+            st.success(
+                "Profile updated successfully."
+            )
+
+            st.rerun()
+
+
+# =========================================================
+# STUDENT DASHBOARD
+# =========================================================
+
+def student_dashboard():
+
+    student = cursor.execute("""
+        SELECT *
+        FROM students
+        WHERE username=?
+    """, (st.session_state.username,)).fetchone()
+
+    if student is None:
+
+        st.error("Student data not found.")
+
+        return
+
+    st.markdown("""
+    <div class="hero">
+
+        <h1>🎓 Student Dashboard</h1>
+
+        <p>
+        Welcome to your hostel management portal.
+        </p>
+
+    </div>
+    """, unsafe_allow_html=True)
 
     col1, col2, col3, col4 = st.columns(4)
 
@@ -369,554 +685,345 @@ def student_dashboard():
 
         st.metric(
             "🏠 Room",
-            student[7]
+            student["room"]
         )
 
     with col2:
 
         st.metric(
             "🛏️ Bed",
-            student[8]
+            student["bed"]
         )
 
     with col3:
 
+        pending = (
+            student["hostel_fee"]
+            - student["paid_fee"]
+        )
+
         st.metric(
-            "💰 Hostel Fee",
-            "₹80,000"
+            "💰 Pending Fee",
+            f"₹{pending:,.0f}"
         )
 
     with col4:
 
         st.metric(
             "📚 Year",
-            student[5]
+            student["year"]
         )
 
-    st.divider()
+    st.write("")
 
-    tab1, tab2, tab3 = st.tabs(
-        [
-            "👤 Profile",
-            "🏠 Room Details",
-            "🍽️ Meals"
-        ]
-    )
+    col1, col2 = st.columns(2)
 
-    with tab1:
+    with col1:
 
-        st.subheader(
-            "My Profile"
-        )
+        st.markdown("""
+        <div class="card">
 
-        st.write(
-            "**Student ID:**",
-            student[2]
-        )
+        <h3>🏠 Hostel Information</h3>
 
-        st.write(
-            "**Phone:**",
-            student[3]
-        )
-
-        st.write(
-            "**Branch:**",
-            student[4]
-        )
-
-        st.write(
-            "**Year:**",
-            student[5]
-        )
-
-    with tab2:
-
-        st.subheader(
-            "Room Details"
-        )
+        </div>
+        """, unsafe_allow_html=True)
 
         st.write(
             "**Hostel:**",
-            student[6]
+            student["hostel"]
         )
 
         st.write(
             "**Block:**",
-            student[7]
+            student["block"]
         )
 
         st.write(
             "**Room:**",
-            student[7]
+            student["room"]
         )
 
         st.write(
             "**Bed:**",
-            student[8]
+            student["bed"]
         )
 
-    with tab3:
+    with col2:
 
-        st.subheader(
-            "Today's Meals"
+        st.markdown("""
+        <div class="card">
+
+        <h3>💰 Fee Information</h3>
+
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.write(
+            f"Total Hostel Fee: ₹{student['hostel_fee']:,.0f}"
         )
 
-        st.success(
-            "🍽️ Meal charges are included "
-            "in your hostel fee. "
+        st.write(
+            f"Paid: ₹{student['paid_fee']:,.0f}"
+        )
+
+        st.write(
+            f"Pending: ₹{pending:,.0f}"
+        )
+
+        st.info(
+            "Meal charges are included in your hostel fee. "
             "No additional payment is required."
         )
 
-        meals = [
-            ("🌅 Breakfast", "Idli + Sambar"),
-            ("☀️ Lunch", "Rice + Dal + Curry"),
-            ("🍪 Snacks", "Tea + Biscuits"),
-            ("🌙 Dinner", "Chapati + Curry")
-        ]
 
-        for meal_name, food in meals:
+# =========================================================
+# STUDENT ROOM
+# =========================================================
 
-            with st.container(border=True):
+def student_room():
 
-                st.write(
-                    f"### {meal_name}"
-                )
+    student = cursor.execute("""
+        SELECT *
+        FROM students
+        WHERE username=?
+    """, (st.session_state.username,)).fetchone()
 
-                st.write(food)
+    st.title("🏠 Room Details")
 
-                if st.button(
-                    "Book Meal",
-                    key=meal_name
-                ):
-
-                    st.success(
-                        "Meal booked successfully."
-                    )
-
-
-# =========================
-# ADMIN DASHBOARD
-# =========================
-
-def admin_dashboard():
-
-    st.title(
-        "👨‍💼 Admin Dashboard"
-    )
-
-    st.write(
-        "Hostel Administrator Control Panel"
-    )
-
-    students = cursor.execute(
-        "SELECT * FROM students"
-    ).fetchall()
-
-    rooms = [
-        "A101",
-        "A102",
-        "A103",
-        "B201",
-        "B202"
-    ]
-
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
 
         st.metric(
-            "🎓 Students",
-            len(students)
+            "Hostel",
+            student["hostel"]
         )
 
     with col2:
 
         st.metric(
-            "🏠 Rooms",
-            len(rooms)
+            "Block",
+            student["block"]
         )
 
     with col3:
 
         st.metric(
-            "🛏️ Beds",
-            20
-        )
-
-    with col4:
-
-        st.metric(
-            "💰 Hostel Fee",
-            "₹80,000"
+            "Room",
+            student["room"]
         )
 
     st.divider()
 
-    menu = st.selectbox(
-        "Admin Management",
+    st.subheader("🛏️ Bed Information")
+
+    st.success(
+        f"You are allocated to {student['bed']}."
+    )
+
+
+# =========================================================
+# STUDENT FEES
+# =========================================================
+
+def student_fees():
+
+    student = cursor.execute("""
+        SELECT *
+        FROM students
+        WHERE username=?
+    """, (st.session_state.username,)).fetchone()
+
+    st.title("💰 Hostel Fee")
+
+    total = student["hostel_fee"]
+    paid = student["paid_fee"]
+    pending = total - paid
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric(
+            "Total Fee",
+            f"₹{total:,.0f}"
+        )
+
+    with col2:
+        st.metric(
+            "Paid",
+            f"₹{paid:,.0f}"
+        )
+
+    with col3:
+        st.metric(
+            "Pending",
+            f"₹{pending:,.0f}"
+        )
+
+    st.divider()
+
+    st.info(
+        "Your hostel fee is a combined fee covering "
+        "accommodation, utilities, maintenance and mess/meal facility."
+    )
+
+    st.success(
+        "🍽️ Meal charges are included in your hostel fee. "
+        "No additional payment is required."
+    )
+
+    payment = st.number_input(
+        "Payment Amount",
+        min_value=0.0,
+        max_value=float(pending),
+        value=0.0
+    )
+
+    method = st.selectbox(
+        "Payment Method",
         [
-            "Students",
-            "Rooms",
-            "Hostel Fees",
-            "Meal Management"
+            "UPI",
+            "Card",
+            "Net Banking"
         ]
     )
 
-    # =========================
-    # STUDENT EDIT
-    # =========================
-
-    if menu == "Students":
-
-        st.header(
-            "🎓 Student Management"
-        )
-
-        df = pd.DataFrame(
-            students,
-            columns=[
-                "ID",
-                "Username",
-                "Student ID",
-                "Phone",
-                "Branch",
-                "Year",
-                "Hostel",
-                "Block",
-                "Room",
-                "Bed",
-                "Fee"
-            ]
-        )
-
-        st.dataframe(
-            df,
-            use_container_width=True
-        )
-
-        st.divider()
-
-        st.subheader(
-            "✏️ Edit Student"
-        )
-
-        student_ids = [
-            x[2]
-            for x in students
-        ]
-
-        selected_id = st.selectbox(
-            "Select Student",
-            student_ids
-        )
-
-        selected = cursor.execute(
-            """
-            SELECT *
-            FROM students
-            WHERE student_id=?
-            """,
-            (selected_id,)
-        ).fetchone()
-
-        if selected:
-
-            with st.form(
-                "edit_student"
-            ):
-
-                name = st.text_input(
-                    "Username",
-                    value=selected[1]
-                )
-
-                phone = st.text_input(
-                    "Phone",
-                    value=selected[3]
-                )
-
-                branch = st.text_input(
-                    "Branch",
-                    value=selected[4]
-                )
-
-                year = st.text_input(
-                    "Year",
-                    value=selected[5]
-                )
-
-                hostel = st.text_input(
-                    "Hostel",
-                    value=selected[6]
-                )
-
-                block = st.text_input(
-                    "Block",
-                    value=selected[7]
-                )
-
-                room = st.text_input(
-                    "Room",
-                    value=selected[8]
-                )
-
-                bed = st.text_input(
-                    "Bed",
-                    value=selected[9]
-                )
-
-                fee = st.number_input(
-                    "Hostel Fee",
-                    min_value=0.0,
-                    value=float(selected[10])
-                )
-
-                save = st.form_submit_button(
-                    "💾 Save Changes",
-                    use_container_width=True
-                )
-
-                if save:
-
-                    cursor.execute(
-                        """
-                        UPDATE students
-                        SET
-                            username=?,
-                            phone=?,
-                            branch=?,
-                            year=?,
-                            hostel=?,
-                            block=?,
-                            room=?,
-                            bed=?,
-                            fee=?
-                        WHERE student_id=?
-                        """,
-                        (
-                            name,
-                            phone,
-                            branch,
-                            year,
-                            hostel,
-                            block,
-                            room,
-                            bed,
-                            fee,
-                            selected_id
-                        )
-                    )
-
-                    conn.commit()
-
-                    st.success(
-                        "Student details updated successfully."
-                    )
-
-                    st.rerun()
-
-    # =========================
-    # ROOMS
-    # =========================
-
-    elif menu == "Rooms":
-
-        st.header(
-            "🏠 Room Management"
-        )
-
-        room_data = pd.DataFrame({
-            "Room": [
-                "A101",
-                "A102",
-                "A103",
-                "B201",
-                "B202"
-            ],
-            "Block": [
-                "A",
-                "A",
-                "A",
-                "B",
-                "B"
-            ],
-            "Type": [
-                "Double",
-                "Double",
-                "Triple",
-                "Four Sharing",
-                "Four Sharing"
-            ],
-            "Beds": [
-                2,
-                2,
-                3,
-                4,
-                4
-            ],
-            "Status": [
-                "Occupied",
-                "Available",
-                "Available",
-                "Available",
-                "Available"
-            ]
-        })
-
-        st.dataframe(
-            room_data,
-            use_container_width=True
-        )
-
-        st.subheader(
-            "Edit Room"
-        )
-
-        room = st.selectbox(
-            "Select Room",
-            room_data["Room"]
-        )
-
-        new_status = st.selectbox(
-            "Room Status",
-            [
-                "Available",
-                "Occupied",
-                "Maintenance",
-                "Closed"
-            ]
-        )
-
-        if st.button(
-            "💾 Update Room"
-        ):
-
-            st.success(
-                f"{room} updated to {new_status}."
-            )
-
-    # =========================
-    # FEES
-    # =========================
-
-    elif menu == "Hostel Fees":
-
-        st.header(
-            "💰 Hostel Fee Management"
-        )
-
-        st.info(
-            "The hostel fee is a combined fee. "
-            "Meal charges are included."
-        )
-
-        total_fee = st.number_input(
-            "Annual Hostel Fee",
-            min_value=0,
-            value=80000
-        )
-
-        if st.button(
-            "💾 Save Fee Structure"
-        ):
-
-            st.success(
-                f"Hostel fee updated to ₹{total_fee:,}"
-            )
-
-    # =========================
-    # MEALS
-    # =========================
-
-    elif menu == "Meal Management":
-
-        st.header(
-            "🍽️ Meal Management"
-        )
-
-        st.success(
-            "Meal charges are included in the hostel fee."
-        )
-
-        breakfast = st.text_input(
-            "Breakfast",
-            "Idli + Sambar"
-        )
-
-        lunch = st.text_input(
-            "Lunch",
-            "Rice + Dal + Curry"
-        )
-
-        snacks = st.text_input(
-            "Snacks",
-            "Tea + Biscuits"
-        )
-
-        dinner = st.text_input(
-            "Dinner",
-            "Chapati + Curry"
-        )
-
-        if st.button(
-            "💾 Save Meal Menu"
-        ):
-
-            st.success(
-                "Meal menu updated successfully."
-            )
-
-
-# =========================
-# APPLICATION
-# =========================
-
-if not st.session_state.logged_in:
-
-    login_page()
-
-else:
-
-    with st.sidebar:
-
-        st.title(
-            "🏢 Smart Hostel"
-        )
-
-        st.write(
-            f"Logged in as: "
-            f"**{st.session_state.username}**"
-        )
-
-        st.divider()
-
-        if st.session_state.role == "admin":
-
-            st.success(
-                "👨‍💼 ADMIN"
+    if st.button(
+        "💳 Pay Hostel Fee",
+        type="primary"
+    ):
+
+        if payment <= 0:
+
+            st.error(
+                "Enter a valid payment amount."
             )
 
         else:
 
-            st.success(
-                "🎓 STUDENT"
+            new_paid = paid + payment
+
+            cursor.execute("""
+                UPDATE students
+                SET paid_fee=?
+                WHERE username=?
+            """, (
+                new_paid,
+                st.session_state.username
+            ))
+
+            conn.commit()
+
+            transaction_id = (
+                "TXN"
+                + datetime.now().strftime("%Y%m%d%H%M%S")
             )
 
-        if st.button(
-            "🚪 Logout",
-            use_container_width=True
-        ):
+            st.success(
+                "Payment successful."
+            )
 
-            st.session_state.logged_in = False
-            st.session_state.role = ""
-            st.session_state.username = ""
+            st.write(
+                "**Transaction ID:**",
+                transaction_id
+            )
 
-            st.rerun()
+            st.write(
+                "**Amount:**",
+                f"₹{payment:,.2f}"
+            )
 
-    if st.session_state.role == "admin":
+            st.write(
+                "**Method:**",
+                method
+            )
 
-        admin_dashboard()
 
-    else:
+# =========================================================
+# MEALS
+# =========================================================
 
-        student_dashboard()
+def student_meals():
+
+    st.title("🍽️ Meal / Mess")
+
+    st.success(
+        "Meal charges are included in your hostel fee. "
+        "No additional payment is required."
+    )
+
+    st.subheader("Today's Menu")
+
+    meals = [
+        ("🌅 Breakfast", "Idli, Sambar, Chutney"),
+        ("☀️ Lunch", "Rice, Dal, Vegetable Curry"),
+        ("🍪 Snacks", "Tea and Biscuits"),
+        ("🌙 Dinner", "Chapati, Paneer Curry, Rice")
+    ]
+
+    for name, food in meals:
+
+        with st.container(border=True):
+
+            st.subheader(name)
+
+            st.write(food)
+
+            if st.button(
+                "Book Meal",
+                key="meal_" + name
+            ):
+
+                st.success(
+                    name + " booked successfully."
+                )
+
+
+# =========================================================
+# COMPLAINTS
+# =========================================================
+
+def student_complaints():
+
+    st.title("🛠️ Complaints")
+
+    with st.form("complaint_form"):
+
+        category = st.selectbox(
+            "Category",
+            [
+                "Food",
+                "Room",
+                "Electricity",
+                "Water",
+                "WiFi",
+                "Cleaning",
+                "Security",
+                "Maintenance",
+                "Other"
+            ]
+        )
+
+        subject = st.text_input(
+            "Subject"
+        )
+
+        description = st.text_area(
+            "Description"
+        )
+
+        priority = st.selectbox(
+            "Priority",
+            [
+                "Low",
+                "Medium",
+                "High",
+                "Emergency"
+            ]
+        )
+
+        submit = st.form_submit_button(
+            "Submit Complaint"
+        )
+
+        if submit:
