@@ -1146,4 +1146,335 @@ st.markdown("""
         <span class="tag">Raspberry Pi</span>
         <span class="tag">ESP32</span>
         <span class="tag">Robotics</span>
-        <
+        <span class="tag">AI</span>
+        <span class="tag">Embedded Systems</span>
+
+    </div>
+
+</div>
+""", unsafe_allow_html=True)
+
+
+# ============================================================
+# EDUCATION
+# ============================================================
+
+st.markdown('<div id="education"></div>', unsafe_allow_html=True)
+
+st.markdown("""
+<div class="section">
+
+    <div class="section-title">
+        <span>Education</span>
+    </div>
+
+    <div class="section-subtitle">
+        My academic journey
+    </div>
+
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<div class="timeline">
+
+    <div class="timeline-item">
+
+        <div class="timeline-year">
+            2025 – 2029
+        </div>
+
+        <h2>
+            B.Tech – Mechanical Engineering
+        </h2>
+
+        <p style="color:#94a3b8;">
+            SR University, Telangana
+        </p>
+
+        <p style="color:#94a3b8;">
+            Currently pursuing 2nd year of B.Tech Mechanical
+            Engineering with interest in CAD, manufacturing,
+            thermal engineering and product development.
+        </p>
+
+    </div>
+
+
+    <div class="timeline-item">
+
+        <div class="timeline-year">
+            2023 – 2025
+        </div>
+
+        <h2>
+            Intermediate
+        </h2>
+
+        <p style="color:#94a3b8;">
+            Alphores Junior College
+        </p>
+
+    </div>
+
+</div>
+""", unsafe_allow_html=True)
+
+
+# ============================================================
+# ACHIEVEMENTS
+# ============================================================
+
+st.markdown('<div id="achievements"></div>', unsafe_allow_html=True)
+
+st.markdown("""
+<div class="section">
+
+    <div class="section-title">
+        <span>Achievements</span>
+    </div>
+
+    <div class="section-subtitle">
+        Academic and technical achievements
+    </div>
+
+</div>
+""", unsafe_allow_html=True)
+
+achievement1, achievement2 = st.columns(2, gap="large")
+
+with achievement1:
+
+    st.markdown("""
+    <div class="card">
+
+        <h2>🏆 Semester Topper</h2>
+
+        <p>
+        Received a Semester Topper Certificate from the
+        Dean and Head of the Department for academic
+        performance.
+        </p>
+
+    </div>
+    """, unsafe_allow_html=True)
+
+
+with achievement2:
+
+    st.markdown("""
+    <div class="card">
+
+        <h2>⚙️ Engineering Projects</h2>
+
+        <p>
+        Working on practical engineering projects involving
+        mechanical design, CAD modelling, thermal management,
+        manufacturing and robotics.
+        </p>
+
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ============================================================
+# RESUME
+# ============================================================
+
+st.markdown('<div id="resume"></div>', unsafe_allow_html=True)
+
+st.markdown("""
+<div class="section">
+
+    <div class="section-title">
+        My <span>Resume</span>
+    </div>
+
+    <div class="section-subtitle">
+        Download my professional resume
+    </div>
+
+</div>
+""", unsafe_allow_html=True)
+
+resume_col1, resume_col2 = st.columns([2, 1], gap="large")
+
+with resume_col1:
+
+    st.markdown("""
+    <div class="card">
+
+        <h2>📄 Professional Resume</h2>
+
+        <p>
+        My resume contains my education, technical skills,
+        engineering projects, achievements and career interests.
+        </p>
+
+    </div>
+    """, unsafe_allow_html=True)
+
+
+with resume_col2:
+
+    if RESUME_FILE.exists():
+
+        with open(RESUME_FILE, "rb") as file:
+
+            st.download_button(
+                label="⬇️ Download Resume",
+                data=file,
+                file_name="Manohar_Paka_Resume.pdf",
+                mime="application/pdf",
+                use_container_width=True
+            )
+
+    else:
+
+        st.warning(
+            "resume.pdf not found. Add your resume.pdf "
+            "to the project folder."
+        )
+
+
+# ============================================================
+# PROFESSIONAL PROFILE
+# ============================================================
+
+st.markdown("""
+<div class="section">
+
+    <div class="section-title">
+        Professional <span>Profile</span>
+    </div>
+
+    <div class="section-subtitle">
+        Connect with me online
+    </div>
+
+</div>
+""", unsafe_allow_html=True)
+
+linkedin_url = (
+    "https://www.linkedin.com/in/"
+    "manohar-paka-3537b5399"
+    "?utm_source=share_via"
+    "&utm_content=profile"
+    "&utm_medium=member_android"
+)
+
+profile1, profile2 = st.columns(2, gap="large")
+
+with profile1:
+
+    st.markdown("""
+    <div class="card">
+
+        <h2>💼 LinkedIn</h2>
+
+        <p>
+        View my professional profile, engineering interests,
+        projects and academic activities.
+        </p>
+
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.link_button(
+        "🔗 Open LinkedIn Profile",
+        linkedin_url,
+        use_container_width=True
+    )
+
+
+with profile2:
+
+    st.markdown("""
+    <div class="card">
+
+        <h2>🚀 Career Interests</h2>
+
+        <p>
+        Mechanical Design • CAD • Manufacturing • Robotics
+        • Thermal Engineering • Product Development
+        </p>
+
+        <p>
+        I am interested in internships and opportunities
+        where I can gain practical engineering experience.
+        </p>
+
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ============================================================
+# CONTACT
+# ============================================================
+
+st.markdown('<div id="contact"></div>', unsafe_allow_html=True)
+
+st.markdown("""
+<div class="section">
+
+    <div class="section-title">
+        <span>Contact</span>
+    </div>
+
+    <div class="section-subtitle">
+        Let's connect
+    </div>
+
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<div class="contact">
+
+    <h2>
+        📩 Interested in connecting?
+    </h2>
+
+    <p style="color:#94a3b8; font-size:16px; line-height:1.8;">
+        I am open to learning opportunities, internships,
+        engineering projects and professional connections.
+    </p>
+
+    <p style="font-size:18px;">
+        📧
+        <a href="mailto:manoharpaka472@gmail.com"
+           style="color:#60a5fa; text-decoration:none;">
+            manoharpaka472@gmail.com
+        </a>
+    </p>
+
+    <p style="font-size:18px;">
+        📍 Telangana, India
+    </p>
+
+</div>
+""", unsafe_allow_html=True)
+
+
+# ============================================================
+# FOOTER
+# ============================================================
+
+st.markdown("""
+<div class="footer">
+
+    <p>
+        Designed & Built by
+        <span>Manohar Paka</span>
+    </p>
+
+    <p>
+        Mechanical Engineering Student • SR University
+    </p>
+
+    <p>
+        © 2026 Manohar Paka. All rights reserved.
+    </p>
+
+</div>
+""", unsafe_allow_html=True)
