@@ -1,945 +1,964 @@
 import streamlit as st
-import sqlite3
-from datetime import date, datetime
-import hashlib
-import uuid
-import pandas as pd
 
 # =========================================================
-# PAGE CONFIG
+# PAGE CONFIGURATION
 # =========================================================
 
 st.set_page_config(
-    page_title="Smart Hostel Management",
-    page_icon="🏠",
-    layout="wide"
+    page_title="Manohar | Mechanical Engineering Portfolio",
+    page_icon="⚙️",
+    layout="wide",
+    initial_sidebar_state="collapsed"
 )
 
-DB = "hostel.db"
-
-
 # =========================================================
-# DATABASE
+# CUSTOM CSS
 # =========================================================
 
-def db():
-    conn = sqlite3.connect(DB, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    return conn
+st.markdown("""
+<style>
 
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
+html {
+    scroll-behavior: smooth;
+}
 
+* {
+    font-family: 'Inter', sans-serif;
+}
 
-def now():
-    return datetime.now().strftime("%Y-%m-%d %H:%M")
+.stApp {
+    background:
+        radial-gradient(circle at 10% 10%, rgba(37,99,235,0.20), transparent 25%),
+        radial-gradient(circle at 90% 90%, rgba(124,58,237,0.18), transparent 25%),
+        #050816;
+    color: white;
+}
 
+/* Remove Streamlit default top space */
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 4rem;
+    max-width: 1200px;
+}
 
-def init_db():
+/* Main headings */
+.hero-title {
+    font-size: 70px;
+    font-weight: 800;
+    line-height: 1.05;
+    margin-bottom: 10px;
+}
 
-    conn = db()
-    cur = conn.cursor()
+.hero-title span {
+    color: #60a5fa;
+}
 
-    cur.executescript("""
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        username TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        role TEXT NOT NULL,
-        name TEXT NOT NULL,
-        active INTEGER DEFAULT 1
+.hero-subtitle {
+    font-size: 25px;
+    font-weight: 600;
+    color: #cbd5e1;
+    margin-bottom: 20px;
+}
+
+.hero-description {
+    font-size: 17px;
+    color: #94a3b8;
+    line-height: 1.8;
+    max-width: 700px;
+}
+
+/* Section titles */
+.section-title {
+    font-size: 40px;
+    font-weight: 800;
+    margin-top: 70px;
+    margin-bottom: 8px;
+}
+
+.section-title span {
+    color: #60a5fa;
+}
+
+.section-description {
+    color: #94a3b8;
+    margin-bottom: 35px;
+}
+
+/* Cards */
+.card {
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 18px;
+    padding: 28px;
+    margin-bottom: 20px;
+    transition: 0.3s;
+    height: 100%;
+}
+
+.card:hover {
+    border-color: rgba(96,165,250,0.55);
+    box-shadow: 0 15px 45px rgba(0,0,0,0.25);
+    transform: translateY(-5px);
+}
+
+.card h3 {
+    color: white;
+    margin-bottom: 12px;
+}
+
+.card p {
+    color: #94a3b8;
+    line-height: 1.7;
+}
+
+/* Project cards */
+.project-card {
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.09);
+    border-radius: 18px;
+    padding: 25px;
+    min-height: 350px;
+    transition: 0.3s;
+}
+
+.project-card:hover {
+    transform: translateY(-7px);
+    border-color: #60a5fa;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+}
+
+.project-icon {
+    font-size: 55px;
+    margin-bottom: 15px;
+}
+
+.project-card h3 {
+    color: white;
+}
+
+.project-card p {
+    color: #94a3b8;
+    line-height: 1.7;
+}
+
+/* Tags */
+.tag {
+    display: inline-block;
+    padding: 6px 12px;
+    margin: 4px 4px 4px 0;
+    border-radius: 20px;
+    background: rgba(96,165,250,0.10);
+    border: 1px solid rgba(96,165,250,0.25);
+    color: #93c5fd;
+    font-size: 12px;
+}
+
+/* Hero card */
+.hero-card {
+    background: linear-gradient(
+        145deg,
+        rgba(37,99,235,0.15),
+        rgba(124,58,237,0.10)
     );
 
-    CREATE TABLE IF NOT EXISTS students (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER UNIQUE,
-        student_id TEXT UNIQUE NOT NULL,
-        name TEXT NOT NULL,
-        phone TEXT,
-        email TEXT,
-        branch TEXT,
-        year TEXT,
-        hostel TEXT,
-        block TEXT,
-        room TEXT,
-        bed TEXT,
-        total_fee REAL DEFAULT 80000,
-        paid_fee REAL DEFAULT 0
+    border: 1px solid rgba(96,165,250,0.2);
+    border-radius: 25px;
+    padding: 45px;
+}
+
+/* Gear */
+.gear {
+    font-size: 150px;
+    text-align: center;
+    animation: spin 12s linear infinite;
+    filter: drop-shadow(0 0 25px rgba(96,165,250,0.35));
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Skill bars */
+.skill-name {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    color: #e2e8f0;
+}
+
+.progress-container {
+    background: #1e293b;
+    border-radius: 20px;
+    height: 9px;
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+.progress-bar {
+    height: 100%;
+    border-radius: 20px;
+    background: linear-gradient(
+        90deg,
+        #2563eb,
+        #60a5fa
     );
+}
 
-    CREATE TABLE IF NOT EXISTS rooms (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        room_no TEXT UNIQUE NOT NULL,
-        block TEXT NOT NULL,
-        floor INTEGER DEFAULT 1,
-        room_type TEXT NOT NULL,
-        total_beds INTEGER DEFAULT 2,
-        status TEXT DEFAULT 'Available'
-    );
+/* Stats */
+.stat-card {
+    text-align: center;
+    padding: 25px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 15px;
+}
 
-    CREATE TABLE IF NOT EXISTS complaints (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_id TEXT,
-        category TEXT,
-        subject TEXT,
-        description TEXT,
-        priority TEXT,
-        status TEXT DEFAULT 'Submitted',
-        created_at TEXT
-    );
+.stat-number {
+    font-size: 35px;
+    font-weight: 800;
+    color: #60a5fa;
+}
 
-    CREATE TABLE IF NOT EXISTS leaves (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_id TEXT,
-        start_date TEXT,
-        end_date TEXT,
-        reason TEXT,
-        destination TEXT,
-        status TEXT DEFAULT 'Pending',
-        created_at TEXT
-    );
+.stat-text {
+    color: #94a3b8;
+}
 
-    CREATE TABLE IF NOT EXISTS announcements (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT,
-        message TEXT,
-        priority TEXT,
-        created_at TEXT
-    );
+/* Buttons */
+div.stButton > button,
+div.stDownloadButton > button {
+    border-radius: 10px;
+    border: 1px solid #60a5fa;
+    background: #2563eb;
+    color: white;
+    font-weight: 600;
+    padding: 10px 20px;
+    transition: 0.3s;
+}
 
-    CREATE TABLE IF NOT EXISTS payments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        student_id TEXT,
-        amount REAL,
-        method TEXT,
-        transaction_id TEXT,
-        paid_at TEXT
-    );
+div.stButton > button:hover,
+div.stDownloadButton > button:hover {
+    background: #1d4ed8;
+    border-color: #93c5fd;
+}
 
-    CREATE TABLE IF NOT EXISTS meals (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        meal_date TEXT,
-        breakfast TEXT,
-        lunch TEXT,
-        snacks TEXT,
-        dinner TEXT
-    );
-    """)
+/* Navigation */
+.nav-box {
+    text-align: center;
+    padding: 12px;
+    margin-bottom: 25px;
+    background: rgba(5,8,22,0.7);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+}
 
-    # -----------------------------------------------------
-    # DEMO USERS
-    # -----------------------------------------------------
+.nav-box a {
+    color: #cbd5e1;
+    text-decoration: none;
+    margin: 0 12px;
+    font-size: 14px;
+}
 
-    if cur.execute(
-        "SELECT COUNT(*) FROM users"
-    ).fetchone()[0] == 0:
+.nav-box a:hover {
+    color: #60a5fa;
+}
 
-        cur.execute(
-            """
-            INSERT INTO users
-            (username, password, role, name)
-            VALUES (?, ?, ?, ?)
-            """,
-            (
-                "admin",
-                hash_password("admin123"),
-                "admin",
-                "Hostel Administrator"
-            )
-        )
+/* Footer */
+.footer {
+    text-align: center;
+    color: #64748b;
+    padding: 45px 10px 10px 10px;
+    margin-top: 70px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+}
 
-        cur.execute(
-            """
-            INSERT INTO users
-            (username, password, role, name)
-            VALUES (?, ?, ?, ?)
-            """,
-            (
-                "student",
-                hash_password("student123"),
-                "student",
-                "Rahul Kumar"
-            )
-        )
+.footer span {
+    color: #60a5fa;
+}
 
-        student_user_id = cur.lastrowid
+/* Mobile */
+@media (max-width: 768px) {
 
-        cur.execute(
-            """
-            INSERT INTO students
-            (
-                user_id,
-                student_id,
-                name,
-                phone,
-                email,
-                branch,
-                year,
-                hostel,
-                block,
-                room,
-                bed,
-                total_fee,
-                paid_fee
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                student_user_id,
-                "STU001",
-                "Rahul Kumar",
-                "9876543210",
-                "rahul@example.com",
-                "Mechanical Engineering",
-                "2nd Year",
-                "ABC College Boys Hostel",
-                "A",
-                "A101",
-                "Bed 1",
-                80000,
-                30000
-            )
-        )
+    .hero-title {
+        font-size: 45px;
+    }
 
-    # -----------------------------------------------------
-    # DEMO ROOMS
-    # -----------------------------------------------------
+    .hero-subtitle {
+        font-size: 20px;
+    }
 
-    if cur.execute(
-        "SELECT COUNT(*) FROM rooms"
-    ).fetchone()[0] == 0:
+    .section-title {
+        font-size: 32px;
+    }
 
-        rooms = [
-            ("A101", "A", 1, "Double", 2, "Occupied"),
-            ("A102", "A", 1, "Double", 2, "Available"),
-            ("A103", "A", 1, "Triple", 3, "Available"),
-            ("B201", "B", 2, "Four Sharing", 4, "Occupied"),
-            ("B202", "B", 2, "Four Sharing", 4, "Available")
-        ]
+    .hero-card {
+        padding: 25px;
+    }
 
-        cur.executemany(
-            """
-            INSERT INTO rooms
-            (
-                room_no,
-                block,
-                floor,
-                room_type,
-                total_beds,
-                status
-            )
-            VALUES (?, ?, ?, ?, ?, ?)
-            """,
-            rooms
-        )
+    .gear {
+        font-size: 100px;
+    }
 
-    # -----------------------------------------------------
-    # MEAL
-    # -----------------------------------------------------
+}
 
-    if cur.execute(
-        "SELECT COUNT(*) FROM meals"
-    ).fetchone()[0] == 0:
-
-        cur.execute(
-            """
-            INSERT INTO meals
-            (
-                meal_date,
-                breakfast,
-                lunch,
-                snacks,
-                dinner
-            )
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (
-                str(date.today()),
-                "Idli, Sambar, Chutney",
-                "Rice, Dal, Vegetable Curry",
-                "Tea, Biscuits",
-                "Chapati, Paneer Curry"
-            )
-        )
-
-    # -----------------------------------------------------
-    # ANNOUNCEMENTS
-    # -----------------------------------------------------
-
-    if cur.execute(
-        "SELECT COUNT(*) FROM announcements"
-    ).fetchone()[0] == 0:
-
-        cur.execute(
-            """
-            INSERT INTO announcements
-            (title, message, priority, created_at)
-            VALUES (?, ?, ?, ?)
-            """,
-            (
-                "Welcome to Hostel Portal",
-                "Hostel fee payment and room services are now available.",
-                "Important",
-                now()
-            )
-        )
-
-        cur.execute(
-            """
-            INSERT INTO announcements
-            (title, message, priority, created_at)
-            VALUES (?, ?, ?, ?)
-            """,
-            (
-                "Maintenance Notice",
-                "Water maintenance is scheduled for Sunday.",
-                "Normal",
-                now()
-            )
-        )
-
-    conn.commit()
-    conn.close()
+</style>
+""", unsafe_allow_html=True)
 
 
 # =========================================================
-# DATABASE HELPERS
+# NAVIGATION
 # =========================================================
 
-def query(sql, params=(), one=False):
+st.markdown("""
+<div class="nav-box">
 
-    conn = db()
+<a href="#home">Home</a>
+<a href="#about">About</a>
+<a href="#skills">Skills</a>
+<a href="#projects">Projects</a>
+<a href="#achievements">Achievements</a>
+<a href="#resume">Resume</a>
+<a href="#contact">Contact</a>
 
-    rows = conn.execute(
-        sql,
-        params
-    ).fetchall()
-
-    conn.close()
-
-    if one:
-        return rows[0] if rows else None
-
-    return rows
-
-
-def execute(sql, params=()):
-
-    conn = db()
-
-    cur = conn.execute(
-        sql,
-        params
-    )
-
-    conn.commit()
-
-    last_id = cur.lastrowid
-
-    conn.close()
-
-    return last_id
-
-
-def money(value):
-
-    return f"₹{float(value):,.0f}"
+</div>
+""", unsafe_allow_html=True)
 
 
 # =========================================================
-# CSS / 3D STYLE
+# HERO SECTION
 # =========================================================
 
-def inject_css():
+st.markdown('<div id="home"></div>', unsafe_allow_html=True)
 
-    st.markdown(
-        """
-        <style>
+col1, col2 = st.columns([1.6, 1])
 
-        .stApp {
+with col1:
 
-            background:
+    st.markdown("""
+    <div class="hero-card">
 
-            radial-gradient(
-                circle at 10% 10%,
-                rgba(0,140,255,0.30),
-                transparent 30%
-            ),
+        <p style="color:#60a5fa;font-size:18px;">
+            Hello, I'm
+        </p>
 
-            radial-gradient(
-                circle at 90% 15%,
-                rgba(170,50,255,0.30),
-                transparent 30%
-            ),
+        <div class="hero-title">
+            Manohar<span>.</span>
+        </div>
 
-            radial-gradient(
-                circle at 50% 90%,
-                rgba(0,220,255,0.10),
-                transparent 35%
-            ),
+        <div class="hero-subtitle">
+            Mechanical Engineering Student
+        </div>
 
-            linear-gradient(
-                135deg,
-                #050b16,
-                #0b1730,
-                #120a24
-            );
+        <p class="hero-description">
+            I am a 2nd-year Mechanical Engineering student at
+            SR University, passionate about CAD design, 3D modelling,
+            manufacturing, product development and innovative
+            engineering projects.
+        </p>
 
-            color: white;
-        }
+    </div>
+    """, unsafe_allow_html=True)
 
-        .hero {
+    st.write("")
 
-            padding: 40px;
+    b1, b2 = st.columns(2)
 
-            border-radius: 30px;
+    with b1:
+        if st.button("⚙️ View My Projects", use_container_width=True):
+            st.markdown(
+                '<meta http-equiv="refresh" content="0; url=#projects">',
+                unsafe_allow_html=True
+            )
 
-            margin-bottom: 25px;
-
-            background:
-
-            linear-gradient(
-                135deg,
-                rgba(0,140,255,0.20),
-                rgba(170,60,255,0.18)
-            );
-
-            border:
-                1px solid rgba(255,255,255,0.18);
-
-            box-shadow:
-
-                0 25px 70px
-                rgba(0,0,0,0.45),
-
-                inset 0 1px 1px
-                rgba(255,255,255,0.10);
-
-            backdrop-filter: blur(15px);
-        }
-
-        .hero h1 {
-
-            font-size: 44px;
-
-            font-weight: 800;
-
-            margin: 0;
-        }
-
-        .hero p {
-
-            font-size: 18px;
-
-            color: #cbd5e1;
-        }
-
-        .glass-card {
-
-            padding: 25px;
-
-            border-radius: 24px;
-
-            background:
-                rgba(255,255,255,0.07);
-
-            border:
-                1px solid rgba(255,255,255,0.13);
-
-            box-shadow:
-
-                0 15px 45px
-                rgba(0,0,0,0.30);
-
-            backdrop-filter:
-                blur(15px);
-        }
-
-        [data-testid="stSidebar"] {
-
-            background:
-                rgba(4,10,22,0.95);
-        }
-
-        div.stButton > button {
-
-            border-radius: 12px;
-
-            font-weight: 700;
-        }
-
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
+    with b2:
+        if st.button("📧 Contact Me", use_container_width=True):
+            st.markdown(
+                '<meta http-equiv="refresh" content="0; url=#contact">',
+                unsafe_allow_html=True
+            )
 
 
-# =========================================================
-# LOGOUT
-# =========================================================
+with col2:
 
-def logout():
+    st.markdown("""
+    <div class="hero-card" style="
+        height:100%;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+    ">
 
-    st.session_state.clear()
+        <div>
 
-    st.rerun()
+            <div class="gear">
+                ⚙️
+            </div>
 
+            <h3 style="
+                text-align:center;
+                color:#60a5fa;
+            ">
+                ENGINEER
+            </h3>
 
-# =========================================================
-# LOGIN
-# =========================================================
-
-def login_screen():
-
-    st.markdown(
-        """
-        <div class="hero">
-
-            <h1>
-                🏠 Smart Hostel Management System
-            </h1>
-
-            <p>
-                Rooms • Fees • Meals • Complaints • Leave • Administration
+            <p style="
+                text-align:center;
+                color:#94a3b8;
+            ">
+                Design • Build • Innovate
             </p>
 
         </div>
-        """,
-        unsafe_allow_html=True
-    )
 
-    left, right = st.columns([1.2, 1])
-
-    with left:
-
-        st.subheader("🔐 Login")
-
-        role = st.radio(
-            "Login As",
-            ["Student", "Admin"],
-            horizontal=True
-        )
-
-        username = st.text_input(
-            "Username"
-        )
-
-        password = st.text_input(
-            "Password",
-            type="password"
-        )
-
-        login = st.button(
-            "LOGIN",
-            type="primary",
-            use_container_width=True
-        )
-
-        if login:
-
-            user = query(
-                """
-                SELECT *
-                FROM users
-                WHERE username=?
-                AND password=?
-                AND role=?
-                AND active=1
-                """,
-                (
-                    username,
-                    hash_password(password),
-                    role.lower()
-                ),
-                one=True
-            )
-
-            if user:
-
-                st.session_state.user_id = user["id"]
-
-                st.session_state.role = user["role"]
-
-                st.session_state.name = user["name"]
-
-                st.rerun()
-
-            else:
-
-                st.error(
-                    "Invalid username or password."
-                )
-
-    with right:
-
-        st.markdown(
-            """
-            <div class="glass-card">
-
-            <h2>🎓 Student Demo</h2>
-
-            Username:
-            <b>student</b>
-
-            <br><br>
-
-            Password:
-            <b>student123</b>
-
-            <hr>
-
-            <h2>👨‍💼 Admin Demo</h2>
-
-            Username:
-            <b>admin</b>
-
-            <br><br>
-
-            Password:
-            <b>admin123</b>
-
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # =========================================================
-# STUDENT SIDEBAR
+# QUICK STATS
 # =========================================================
 
-def student_nav():
+st.write("")
+st.write("")
 
-    with st.sidebar:
+s1, s2, s3, s4 = st.columns(4)
 
-        st.title("🏠 Hostel Portal")
+with s1:
+    st.markdown("""
+    <div class="stat-card">
+        <div class="stat-number">2nd</div>
+        <div class="stat-text">Year</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-        st.success(
-            f"🎓 {st.session_state.name}"
-        )
+with s2:
+    st.markdown("""
+    <div class="stat-card">
+        <div class="stat-number">3+</div>
+        <div class="stat-text">Projects</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-        page = st.radio(
-            "Navigation",
-            [
-                "Dashboard",
-                "My Profile",
-                "Room Details",
-                "Hostel Fee",
-                "Payment History",
-                "Meals / Mess",
-                "Complaints",
-                "Leave",
-                "Announcements",
-                "Notifications",
-                "Settings"
-            ]
-        )
+with s3:
+    st.markdown("""
+    <div class="stat-card">
+        <div class="stat-number">CAD</div>
+        <div class="stat-text">Design</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-        st.divider()
-
-        if st.button(
-            "🚪 Logout",
-            use_container_width=True
-        ):
-
-            logout()
-
-    return page
-
-
-# =========================================================
-# ADMIN SIDEBAR
-# =========================================================
-
-def admin_nav():
-
-    with st.sidebar:
-
-        st.title("🏢 Admin Portal")
-
-        st.success(
-            "👨‍💼 Administrator"
-        )
-
-        page = st.radio(
-            "Admin Navigation",
-            [
-                "Dashboard",
-                "Students",
-                "Rooms",
-                "Room Allocation",
-                "Hostel Fees",
-                "Payments",
-                "Meal Management",
-                "Complaints",
-                "Leave Requests",
-                "Announcements",
-                "Reports",
-                "Settings"
-            ]
-        )
-
-        st.divider()
-
-        if st.button(
-            "🚪 Logout",
-            use_container_width=True
-        ):
-
-            logout()
-
-    return page
+with s4:
+    st.markdown("""
+    <div class="stat-card">
+        <div class="stat-number">🏆</div>
+        <div class="stat-text">Semester Topper</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # =========================================================
-# GET CURRENT STUDENT
+# ABOUT
 # =========================================================
 
-def get_student():
+st.markdown('<div id="about"></div>', unsafe_allow_html=True)
 
-    return query(
-        """
-        SELECT *
-        FROM students
-        WHERE user_id=?
-        """,
-        (st.session_state.user_id,),
-        one=True
-    )
+st.markdown(
+    '<div class="section-title">About <span>Me</span></div>',
+    unsafe_allow_html=True
+)
+
+st.markdown(
+    '<div class="section-description">'
+    'My education, interests and engineering goals'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+about1, about2 = st.columns(2)
+
+with about1:
+
+    st.markdown("""
+    <div class="card">
+
+        <h3>👨‍🎓 Who I Am</h3>
+
+        <p>
+        I am a Mechanical Engineering student interested in
+        practical engineering, CAD design and product development.
+        </p>
+
+        <p>
+        I enjoy converting engineering concepts into physical
+        designs and prototypes. I am currently improving my
+        knowledge of Fusion 360, engineering drawing,
+        manufacturing processes and programming.
+        </p>
+
+        <p>
+        My goal is to develop strong technical skills and gain
+        real-world industry experience through internships,
+        projects and continuous learning.
+        </p>
+
+    </div>
+    """, unsafe_allow_html=True)
+
+
+with about2:
+
+    st.markdown("""
+    <div class="card">
+
+        <h3>📋 Personal Details</h3>
+
+        <p>
+        <strong style="color:#60a5fa;">Name:</strong>
+        Manohar
+        </p>
+
+        <p>
+        <strong style="color:#60a5fa;">Branch:</strong>
+        Mechanical Engineering
+        </p>
+
+        <p>
+        <strong style="color:#60a5fa;">Year:</strong>
+        2nd Year
+        </p>
+
+        <p>
+        <strong style="color:#60a5fa;">University:</strong>
+        SR University
+        </p>
+
+        <p>
+        <strong style="color:#60a5fa;">Interests:</strong>
+        CAD, 3D Modelling, Manufacturing
+        </p>
+
+        <p>
+        <strong style="color:#60a5fa;">Career Goal:</strong>
+        Engineering & Space Technology
+        </p>
+
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # =========================================================
-# STUDENT APPLICATION
+# SKILLS
 # =========================================================
 
-def student_app():
+st.markdown('<div id="skills"></div>', unsafe_allow_html=True)
 
-    page = student_nav()
+st.markdown(
+    '<div class="section-title">My <span>Skills</span></div>',
+    unsafe_allow_html=True
+)
 
-    student = get_student()
+st.markdown(
+    '<div class="section-description">'
+    'Technical skills I am currently developing'
+    '</div>',
+    unsafe_allow_html=True
+)
 
-    if not student:
+skill1, skill2 = st.columns(2)
 
-        st.error(
-            "Student profile not found."
-        )
+with skill1:
 
-        return
+    skills = [
+        ("Fusion 360", 75),
+        ("Engineering Drawing", 80),
+        ("AutoCAD", 65),
+        ("Python", 60),
+    ]
 
-    # -----------------------------------------------------
-    # DASHBOARD
-    # -----------------------------------------------------
-
-    if page == "Dashboard":
+    for name, value in skills:
 
         st.markdown(
             f"""
-            <div class="hero">
+            <div class="skill-name">
+                <span>{name}</span>
+                <span>{value}%</span>
+            </div>
 
-                <h1>
-                    🎓 Welcome, {student["name"]}
-                </h1>
+            <div class="progress-container">
+                <div class="progress-bar"
+                     style="width:{value}%">
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
-                <p>
-                    Student ID:
-                    {student["student_id"]}
-                </p>
+
+with skill2:
+
+    skill_cards = [
+        ("⚙️", "CAD Design", "2D and 3D mechanical design"),
+        ("🔧", "Manufacturing", "Manufacturing processes"),
+        ("🧊", "3D Modelling", "Product and component modelling"),
+        ("💻", "Programming", "Python and basic programming"),
+    ]
+
+    for icon, title, description in skill_cards:
+
+        st.markdown(
+            f"""
+            <div class="card">
+
+                <div style="font-size:35px;">
+                    {icon}
+                </div>
+
+                <h3>{title}</h3>
+
+                <p>{description}</p>
 
             </div>
             """,
             unsafe_allow_html=True
         )
 
-        pending = max(
-            0,
-            student["total_fee"] -
-            student["paid_fee"]
+
+# =========================================================
+# PROJECTS
+# =========================================================
+
+st.markdown('<div id="projects"></div>', unsafe_allow_html=True)
+
+st.markdown(
+    '<div class="section-title">My <span>Projects</span></div>',
+    unsafe_allow_html=True
+)
+
+st.markdown(
+    '<div class="section-description">'
+    'Engineering projects and product ideas'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+p1, p2, p3 = st.columns(3)
+
+
+with p1:
+
+    st.markdown("""
+    <div class="project-card">
+
+        <div class="project-icon">❄️</div>
+
+        <h3>Passive Cooling Enclosure</h3>
+
+        <p>
+        A compact passive cooling enclosure designed using
+        aluminium components for thermal management without
+        relying on active cooling.
+        </p>
+
+        <span class="tag">Mechanical</span>
+        <span class="tag">Thermal</span>
+        <span class="tag">CAD</span>
+        <span class="tag">Aluminium</span>
+
+    </div>
+    """, unsafe_allow_html=True)
+
+
+with p2:
+
+    st.markdown("""
+    <div class="project-card">
+
+        <div class="project-icon">👕</div>
+
+        <h3>Portable Cloth Dryer</h3>
+
+        <p>
+        A foldable and portable cloth drying mechanism designed
+        for efficient space utilisation and convenient mounting.
+        </p>
+
+        <span class="tag">Product Design</span>
+        <span class="tag">Manufacturing</span>
+        <span class="tag">Mechanism</span>
+
+    </div>
+    """, unsafe_allow_html=True)
+
+
+with p3:
+
+    st.markdown("""
+    <div class="project-card">
+
+        <div class="project-icon">🤖</div>
+
+        <h3>AI Voice Car</h3>
+
+        <p>
+        A small physical AI voice robot concept using Raspberry Pi
+        and ESP32, designed to move and respond to voice commands.
+        </p>
+
+        <span class="tag">Raspberry Pi</span>
+        <span class="tag">ESP32</span>
+        <span class="tag">Robotics</span>
+        <span class="tag">AI</span>
+
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# =========================================================
+# ACHIEVEMENTS
+# =========================================================
+
+st.markdown('<div id="achievements"></div>', unsafe_allow_html=True)
+
+st.markdown(
+    '<div class="section-title">'
+    '<span>Achievements</span>'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+st.markdown(
+    '<div class="section-description">'
+    'Academic achievements and milestones'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+a1, a2, a3 = st.columns(3)
+
+with a1:
+
+    st.markdown("""
+    <div class="card">
+
+        <div style="font-size:50px;">🏆</div>
+
+        <h3>Semester Topper</h3>
+
+        <p>
+        Received a Semester Topper Certificate from the
+        Dean and Head of Department.
+        </p>
+
+    </div>
+    """, unsafe_allow_html=True)
+
+
+with a2:
+
+    st.markdown("""
+    <div class="card">
+
+        <div style="font-size:50px;">🎓</div>
+
+        <h3>Mechanical Engineering</h3>
+
+        <p>
+        Currently pursuing Mechanical Engineering at
+        SR University.
+        </p>
+
+    </div>
+    """, unsafe_allow_html=True)
+
+
+with a3:
+
+    st.markdown("""
+    <div class="card">
+
+        <div style="font-size:50px;">🚀</div>
+
+        <h3>Engineering Projects</h3>
+
+        <p>
+        Developing practical engineering projects and
+        improving CAD and design skills.
+        </p>
+
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# =========================================================
+# RESUME
+# =========================================================
+
+st.markdown('<div id="resume"></div>', unsafe_allow_html=True)
+
+st.markdown(
+    '<div class="section-title">My <span>Resume</span></div>',
+    unsafe_allow_html=True
+)
+
+st.markdown("""
+<div class="card" style="text-align:center;">
+
+    <h2>📄 My Resume</h2>
+
+    <p>
+    Download my resume to learn more about my education,
+    skills, projects and achievements.
+    </p>
+
+</div>
+""", unsafe_allow_html=True)
+
+try:
+
+    with open("resume.pdf", "rb") as file:
+
+        st.download_button(
+            label="📥 Download My Resume",
+            data=file,
+            file_name="Manohar_Resume.pdf",
+            mime="application/pdf",
+            use_container_width=True
         )
 
-        c1, c2, c3, c4 = st.columns(4)
+except FileNotFoundError:
 
-        c1.metric(
-            "🏠 Room",
-            student["room"] or "-"
+    st.info(
+        "Add your resume PDF to the project folder and name it "
+        "'resume.pdf' to enable the download button."
+    )
+
+
+# =========================================================
+# CONTACT
+# =========================================================
+
+st.markdown('<div id="contact"></div>', unsafe_allow_html=True)
+
+st.markdown(
+    '<div class="section-title">Contact <span>Me</span></div>',
+    unsafe_allow_html=True
+)
+
+st.markdown(
+    '<div class="section-description">'
+    'Let’s connect and build something useful'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+contact1, contact2 = st.columns(2)
+
+with contact1:
+
+    st.markdown("""
+    <div class="card">
+
+        <h3>📧 Get In Touch</h3>
+
+        <br>
+
+        <p>
+        <strong style="color:#60a5fa;">
+        Email
+        </strong>
+        <br>
+        your-email@example.com
+        </p>
+
+        <br>
+
+        <p>
+        <strong style="color:#60a5fa;">
+        LinkedIn
+        </strong>
+        <br>
+        linkedin.com/in/your-profile
+        </p>
+
+        <br>
+
+        <p>
+        <strong style="color:#60a5fa;">
+        GitHub
+        </strong>
+        <br>
+        github.com/your-username
+        </p>
+
+        <br>
+
+        <p>
+        <strong style="color:#60a5fa;">
+        Location
+        </strong>
+        <br>
+        Telangana, India
+        </p>
+
+    </div>
+    """, unsafe_allow_html=True)
+
+
+with contact2:
+
+    st.markdown("""
+    <div class="card">
+
+        <h3>🤝 Let's Connect</h3>
+
+        <p>
+        I am interested in internships, engineering projects,
+        CAD design opportunities and learning from industry
+        professionals.
+        </p>
+
+        <br>
+
+        <p>
+        Feel free to connect with me through LinkedIn or email.
+        </p>
+
+    </div>
+    """, unsafe_allow_html=True)
+
+    if st.button("💼 Open LinkedIn", use_container_width=True):
+
+        st.markdown(
+            "[Click here to open LinkedIn](https://www.linkedin.com/)",
+            unsafe_allow_html=True
         )
 
-        c2.metric(
-            "🛏️ Bed",
-            student["bed"] or "-"
-        )
 
-        c3.metric(
-            "💰 Paid",
-            money(student["paid_fee"])
-        )
+# =========================================================
+# FOOTER
+# =========================================================
 
-        c4.metric(
-            "⚠️ Pending",
-            money(pending)
-        )
+st.markdown("""
+<div class="footer">
 
-        st.success(
-            "🍽️ Meal charges are included in your hostel fee. "
-            "No additional payment is required."
-        )
+    <p>
+        © 2026 <span>Manohar</span>
+    </p>
 
-        st.subheader(
-            "🍽️ Today's Menu"
-        )
+    <p>
+        Mechanical Engineering Student | SR University
+    </p>
 
-        meal = query(
-            """
-            SELECT *
-            FROM meals
-            WHERE meal_date=?
-            """,
-            (str(date.today()),),
-            one=True
-        )
+    <p>
+        Designed with Python & Streamlit ⚙️
+    </p>
 
-        if meal:
-
-            st.dataframe(
-                pd.DataFrame(
-                    [{
-                        "Breakfast":
-                            meal["breakfast"],
-
-                        "Lunch":
-                            meal["lunch"],
-
-                        "Snacks":
-                            meal["snacks"],
-
-                        "Dinner":
-                            meal["dinner"]
-                    }]
-                ),
-                use_container_width=True,
-                hide_index=True
-            )
-
-        st.subheader(
-            "📢 Latest Announcements"
-        )
-
-        announcements = query(
-            """
-            SELECT *
-            FROM announcements
-            ORDER BY id DESC
-            LIMIT 3
-            """
-        )
-
-        for announcement in announcements:
-
-            st.info(
-                f"**{announcement['title']}**\n\n"
-                f"{announcement['message']}"
-            )
-
-    # -----------------------------------------------------
-    # PROFILE
-    # -----------------------------------------------------
-
-    elif page == "My Profile":
-
-        st.title(
-            "👤 My Profile"
-        )
-
-        with st.form(
-            "student_profile"
-        ):
-
-            name = st.text_input(
-                "Full Name",
-                student["name"]
-            )
-
-            phone = st.text_input(
-                "Phone",
-                student["phone"] or ""
-            )
-
-            email = st.text_input(
-                "Email",
-                student["email"] or ""
-            )
-
-            branch = st.text_input(
-                "Branch",
-                student["branch"] or ""
-            )
-
-            years = [
-                "1st Year",
-                "2nd Year",
-                "3rd Year",
-                "4th Year"
-            ]
-
-            current_year = (
-                years.index(student["year"])
-                if student["year"] in years
-                else 0
-            )
-
-            year = st.selectbox(
-                "Year",
-                years,
-                index=current_year
-            )
-
-            save = st.form_submit_button(
-                "💾 Save Changes",
-                type="primary"
-            )
-
-        if save:
-
-            execute(
-                """
-                UPDATE students
-                SET name=?,
-                    phone=?,
-                    email=?,
-                    branch=?,
-                    year=?
-                WHERE id=?
-                """,
-                (
-                    name,
-                    phone,
-                    email,
-                    branch,
-                    year,
-                    student["id"]
-                )
-            )
-
-            execute(
-                """
-                UPDATE users
-                SET name=?
-                WHERE id=?
-                """,
-                (
-                    name,
-                    st.session_state.user_id
-                )
-            )
-
-            st.session_state.name = name
-
-            st.success(
-                "Profile updated successfully!"
-            )
-
-    # -----------------------------------------------------
-    # ROOM
-    # -----------------------------------------------------
-
-    elif p
+</div>
+""", unsafe_allow_html=True)
