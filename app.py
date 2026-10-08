@@ -1162,3 +1162,150 @@ with g2:
     )
 
     show_image()
+
+
+
+# ============================================================
+# PROJECT IMAGES
+# ============================================================
+
+IMAGE_DIR = Path("images")
+
+profile_image = IMAGE_DIR / "profile.jpg"
+resume_preview = IMAGE_DIR / "resume_preview.jpg"
+cloth_dryer_image = IMAGE_DIR / "cloth_dryer.jpg"
+passive_cooling_image = IMAGE_DIR / "passive_cooling.jpg"
+
+
+# ============================================================
+# PROFILE
+# ============================================================
+
+if profile_image.exists():
+    st.image(
+        str(profile_image),
+        use_container_width=True
+    )
+else:
+    st.markdown("""
+    <div class="profile-placeholder">
+        👨‍🎓
+    </div>
+    """, unsafe_allow_html=True)
+
+
+# ============================================================
+# PASSIVE COOLING PROJECT
+# ============================================================
+
+st.markdown("""
+<div class="project-card">
+
+    <div class="project-content">
+
+        <div class="project-number">
+            PROJECT 01
+        </div>
+
+        <h2>
+            Passive Cooling Enclosure
+        </h2>
+
+        <p>
+            A passive cooling enclosure designed for thermal
+            management and compact electronic applications.
+            The project focuses on aluminium construction,
+            natural airflow and heat dissipation.
+        </p>
+
+    </div>
+
+</div>
+""", unsafe_allow_html=True)
+
+if passive_cooling_image.exists():
+
+    st.image(
+        str(passive_cooling_image),
+        caption="Passive Cooling Enclosure – 2D Fabrication & Design",
+        use_container_width=True
+    )
+
+st.markdown("""
+<span class="tag">Fusion 360</span>
+<span class="tag">Thermal Engineering</span>
+<span class="tag">Aluminium</span>
+<span class="tag">Mechanical Design</span>
+""", unsafe_allow_html=True)
+
+
+# ============================================================
+# PORTABLE CLOTH DRYER
+# ============================================================
+
+st.markdown("""
+<div class="project-card">
+
+    <div class="project-content">
+
+        <div class="project-number">
+            PROJECT 02
+        </div>
+
+        <h2>
+            Foldable Wall & Ceiling Mounted Dryer
+        </h2>
+
+        <p>
+            A space-saving portable cloth dryer with a
+            foldable frame mechanism. The design uses
+            hinged frames that allow the dryer to fold
+            against the wall when not in use.
+        </p>
+
+    </div>
+
+</div>
+""", unsafe_allow_html=True)
+
+if cloth_dryer_image.exists():
+
+    st.image(
+        str(cloth_dryer_image),
+        caption="Foldable Wall & Ceiling Mounted Dryer – Mechanical Design",
+        use_container_width=True
+    )
+
+st.markdown("""
+<span class="tag">Product Design</span>
+<span class="tag">Mechanism</span>
+<span class="tag">CAD</span>
+<span class="tag">Manufacturing</span>
+""", unsafe_allow_html=True)
+
+
+# ============================================================
+# RESUME PREVIEW
+# ============================================================
+
+st.markdown("""
+<div class="section">
+
+    <div class="section-heading">
+        My <span>Profile</span>
+    </div>
+
+    <div class="section-subtitle">
+        Education, skills and engineering background
+    </div>
+
+</div>
+""", unsafe_allow_html=True)
+
+if resume_preview.exists():
+
+    st.image(
+        str(resume_preview),
+        caption="Manohar – B.Tech Mechanical Engineering",
+        use_container_width=True
+    )
